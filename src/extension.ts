@@ -21,14 +21,14 @@ let spawnOptions: child_process.SpawnSyncOptions = {
 
 type IFileFormat = 'yaml' | 'json';
 
-async function handleFile(event: vscode.TextEditor, fileFormat: IFileFormat) {
-	debug('handleYamlFile');
-	const fileContent = await getFileContent(event.document.uri);
+async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
+	debug('handleFile');
+	const fileContent = await getFileContent(document.uri);
 	const parser = getParser(fileFormat);
 	const fileData = parser(fileContent);
 	debug('YAML', fileData);
 	if (typeof fileData.sops?.version === 'string') {
-		await ensureOpenDecryptedFile(event.document.uri, 'yaml');
+		await ensureOpenDecryptedFile(document.uri, 'yaml');
 	}
 }
 
@@ -68,10 +68,24 @@ async function ensureOpenDecryptedFile(encryptedUri: vscode.Uri, fileFormat: IFi
 			await encryptFileToFile(decryptedUri, encryptedUri, fileFormat);
 		}
 	}
-	// TODO open
-	//if (!await isFileOpen(decryptedUri)) {
-	//	await openFile(decryptedUri);
-	//}
+	if (!isFileOpen(decryptedUri)) {
+		await openFile(decryptedUri);
+	}
+}
+
+function isFileOpen(uri: vscode.Uri) {
+	return vscode.window.visibleTextEditors.some((editor) => editor.document.uri.path === uri.path);
+}
+
+async function openFile(uri: vscode.Uri) {
+	return await vscode.window.showTextDocument(uri);
+}
+
+async function closeFile(uri: vscode.Uri) {
+	const visibleEditor = vscode.window.visibleTextEditors.find((editor) => editor.document.uri.path === uri.path);
+	if (!visibleEditor) {
+		await vscode.workspace.fs.delete(uri);
+	}
 }
 
 async function decryptFileToFile(encryptedUri: vscode.Uri, decryptedUri: vscode.Uri, fileFormat: IFileFormat) {
@@ -186,17 +200,35 @@ async function fileExists(uri: vscode.Uri) {
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
-	vscode.window.onDidChangeActiveTextEditor(async (event) => {
-		debug('document', event?.document);
+	let lastActiveEditor: vscode.TextEditor | undefined;
+
+	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+		debug('change active editor', editor?.document.fileName);
+		if (lastActiveEditor) {
+			const document = lastActiveEditor.document;
+			try {
+				if (path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
+					if (document.languageId === 'yaml' || document.languageId === 'json') {
+						await closeFile(document.uri);
+					}
+				}
+			} catch (error) {
+				debug('Cannot close file', document.fileName, error.message);
+			}
+		}
+		lastActiveEditor = editor;
+	});
+	vscode.workspace.onDidOpenTextDocument(async (document) => {
+		debug('open document', document.fileName);
 		try {
-			if (event?.document.languageId === 'yaml') {
-				await handleFile(event, 'yaml');
-			} else if (event?.document.languageId === 'json') {
-				await handleFile(event, 'json');
+			if (document.languageId === 'yaml') {
+				await handleFile(document, 'yaml');
+			} else if (document.languageId === 'json') {
+				await handleFile(document, 'json');
 			}
 			// TODO dotenv
 		} catch (error) {
-			debug('Cannot parse file', event?.document.fileName, error.message);
+			debug('Cannot parse file', document.fileName, error.message);
 		}
 	});
 
