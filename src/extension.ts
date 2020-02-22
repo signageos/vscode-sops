@@ -28,7 +28,13 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 	const fileData = parser(fileContent);
 	debug('YAML', fileData);
 	if (typeof fileData.sops?.version === 'string') {
-		await ensureOpenDecryptedFile(document.uri, 'yaml');
+		const progressOptions: vscode.ProgressOptions = {
+			location: vscode.ProgressLocation.Notification,
+		};
+		await vscode.window.withProgress(progressOptions, async (progress) => {
+			progress.report({ message: `Decrypting "${document.fileName}" SOPS file` });
+			await ensureOpenDecryptedFile(document.uri, 'yaml');
+		});
 	}
 }
 
