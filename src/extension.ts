@@ -220,6 +220,7 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			} catch (error) {
 				debug('Cannot close file', document.fileName, error.message);
+				vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
 			}
 		}
 		lastActiveEditor = editor;
@@ -235,6 +236,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// TODO dotenv
 		} catch (error) {
 			debug('Cannot parse file', document.fileName, error.message);
+			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
 		}
 	});
 
