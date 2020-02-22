@@ -38,6 +38,40 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 	}
 }
 
+async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
+	debug('handleSaveFile');
+	const decryptedUri = document.uri;
+	if (path.basename(decryptedUri.path).startsWith(DECRYPTED_PREFIX)) {
+		const encryptedFileName = path.join(
+			path.dirname(decryptedUri.path),
+			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length)
+		);
+		debug('Encrypted filename', encryptedFileName);
+		const encryptedUri = decryptedUri.with({ path: encryptedFileName });
+		debug('Encrypted ur', encryptedUri);
+		const progressOptions: vscode.ProgressOptions = {
+			location: vscode.ProgressLocation.Notification,
+		};
+		await vscode.window.withProgress(progressOptions, async (progress) => {
+			progress.report({ message: `Encrypting "${encryptedUri.path}" SOPS file` });
+			await overrideEncryptedFile(decryptedUri, encryptedUri, fileFormat);
+		});
+	}
+}
+
+async function overrideEncryptedFile(decryptedUri: vscode.Uri, encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
+	const originalFileContent = await getDecryptedFileContent(encryptedUri, fileFormat);
+	const currentFileContent = await getFileContent(decryptedUri);
+	debug('Comparing files', { originalFileContent, currentFileContent });
+	const encryptedContentChecksum = await getChecksum(originalFileContent);
+	const decryptedContentChecksum = await getChecksum(currentFileContent);
+	debug('Content checksums', { encryptedContentChecksum, decryptedContentChecksum });
+	if (encryptedContentChecksum !== decryptedContentChecksum) {
+		debug('Updating encrypted');
+		await encryptFileToFile(decryptedUri, encryptedUri, fileFormat);
+	}
+}
+
 function getParser(fileFormat: IFileFormat) {
 	switch (fileFormat) {
 		case 'yaml': return YAML.parse;
@@ -237,6 +271,21 @@ export function activate(context: vscode.ExtensionContext) {
 		} catch (error) {
 			debug('Cannot parse file', document.fileName, error.message);
 			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+		}
+	});
+
+	vscode.workspace.onDidSaveTextDocument(async (document) => {
+		debug('save document', document.fileName);
+		try {
+			if (document.languageId === 'yaml') {
+				await handleSaveFile(document, 'yaml');
+			} else if (document.languageId === 'json') {
+				await handleSaveFile(document, 'json');
+			}
+			// TODO dotenv
+		} catch (error) {
+			debug('Cannot encrypt file', document.fileName, error.message);
+			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error.message}`);
 		}
 	});
 
