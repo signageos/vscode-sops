@@ -2,6 +2,7 @@
 	"name": "@signageos/vscode-sops",
 	"displayName": "@signageos/vscode-sops",
 	"description": "",
+	"publisher": "signageos",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.42.0"
