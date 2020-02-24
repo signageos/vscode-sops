@@ -10,7 +10,7 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.sops"
+		"*"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
