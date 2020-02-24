@@ -1,3 +1,0 @@
-#!/bin/sh
-
-cat $VSCODE_SOPS_DECRYPTED_FILE_PATH > $1

@@ -12,9 +12,13 @@ const debug = Debug('@signageos/vscode-sops');
 const convertUtf8ToUint8Array = (input: string) => new TextEncoder("utf-8").encode(input);
 const contertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
 
+const FAKE_DECRYPTED_ADITOR_NODE = `#!/usr/bin/env node
+const fs = require('fs');
+fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYPTED_FILE_PATH));
+`;
+
 const DECRYPTED_PREFIX = '.decrypted~';
 let sopsBinPath = 'sops'; // TODO configuration
-let fakeDecryptedEditor = __dirname + '/../tools/decryptedEditor.sh'; // TODO non unix decryption
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
@@ -189,7 +193,9 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 	const originalEncryptedContent = await getFileContent(originalEncryptedUri);
 	const tmpDecryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	const tmpEncryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
+	const tmpFakeDecryptedEditorPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	try {
+		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_ADITOR_NODE, { mode: 0o755 }); // TODO add Win .cmd script detection
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
@@ -205,7 +211,8 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 			{
 				...spawnOptions,
 				env: {
-					EDITOR: fakeDecryptedEditor,
+					...process.env,
+					EDITOR: tmpFakeDecryptedEditorPath,
 					VSCODE_SOPS_DECRYPTED_FILE_PATH: tmpDecryptedFilePath,
 				},
 			},
@@ -225,6 +232,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 	} finally {
 		await fs.remove(tmpDecryptedFilePath);
 		await fs.remove(tmpEncryptedFilePath);
+		await fs.remove(tmpFakeDecryptedEditorPath);
 	}
 }
 
