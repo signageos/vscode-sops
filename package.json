@@ -1,5 +1,5 @@
 {
-	"name": "@signageos/vscode-sops",
+	"name": "signageos-vscode-sops",
 	"displayName": "@signageos/vscode-sops",
 	"description": "",
 	"publisher": "signageos",
