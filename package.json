@@ -4,6 +4,10 @@
 	"description": "",
 	"publisher": "signageos",
 	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/signageos/vscode-sops"
+	},
 	"engines": {
 		"vscode": "^1.42.0"
 	},
