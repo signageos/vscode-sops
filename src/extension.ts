@@ -26,7 +26,7 @@ let spawnOptions: child_process.SpawnSyncOptions = {
 type IFileFormat = 'yaml' | 'json';
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
-	debug('handleFile');
+	debug('handleFile', document, fileFormat);
 	if (!path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
@@ -45,7 +45,7 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 }
 
 async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
-	debug('handleSaveFile');
+	debug('handleSaveFile', document, fileFormat);
 	const decryptedUri = document.uri;
 	if (path.basename(decryptedUri.path).startsWith(DECRYPTED_PREFIX)) {
 		const encryptedFileName = path.join(
