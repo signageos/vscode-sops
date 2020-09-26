@@ -23,11 +23,13 @@ VSCode extension which allows to realtime edit [SOPS](https://github.com/mozilla
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 * `sops.configPath`: Absolute path (Starts with /) or Relative path to project (Starts with ./) where the configuration for this extension is looking for (default: Looking for file `.vscodesopsrc` in root of project) See [Config file](#config-file) section.
 * `sops.defaultAwsProfile`: Default AWS profile name which will be used for sops command `--aws-profile` (default: uses from environment variable `$AWS_PROFILE`)
+* `sops.defaultGcpCredentialsPath`: Default path used to find GCP credentials. Overwrites the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (default: uses from environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)
 
 ## Config file
 > Named `.vscodesopsrc` in project root by default and is in YAML format.
 ```yaml
 awsProfile: my-profile-1
+gcpCredentialsPath: /home/user/Downloads/my-key.json
 ```
 
 ## Known Issues

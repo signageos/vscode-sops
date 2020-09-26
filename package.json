@@ -50,6 +50,11 @@
 					"type": "string",
 					"scope": "resource",
 					"description": "Default AWS profile name which will be used for sops command `--aws-profile` (default: uses from environment variable `$AWS_PROFILE`)"
+				},
+				"sops.defaultGcpCredentialsPath": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Default path used to find GCP credentials. Overwrites the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (default: uses from environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)"
 				}
 			}
 		}

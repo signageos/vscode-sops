@@ -22,12 +22,15 @@ enum ConfigName {
 	enabled = 'enabled',
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaultAwsProfile',
+	defaultGcpCredentialsPath = 'defaultGcpCredentialsPath',
 	configPath = 'configPath', // Run Control path
 }
 interface IRunControl {
 	awsProfile?: string;
+	gcpCredentialsPath?: string;
 }
 const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
+const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
 const DECRYPTED_PREFIX = '.decrypted~';
@@ -280,9 +283,11 @@ async function fileExists(uri: vscode.Uri) {
 
 async function getSopsGeneralOptions() {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
-	debug('config', { defaultAwsProfile });
+	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
+	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath });
 	const rc = await getRunControl();
 	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
+	const gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
 
 	const sopsGeneralArgs = [];
 	const sopsGeneralEnvVars: any = {};
@@ -290,6 +295,10 @@ async function getSopsGeneralOptions() {
 	if (awsProfile) {
 		sopsGeneralArgs.push('--aws-profile', awsProfile);
 		sopsGeneralEnvVars[AWS_PROFILE_ENV_VAR_NAME] = awsProfile; // --aws-profile argument doesn't work well
+	}
+
+	if (gcpCredentialsPath) {
+		sopsGeneralEnvVars[GCP_CREDENTIALS_ENV_VAR_NAME] = gcpCredentialsPath;
 	}
 
 	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
