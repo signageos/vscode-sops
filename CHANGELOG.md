@@ -9,6 +9,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Configuration `sops.enabled`, `sops.binPath` works now as expected.
 - Run control (config) file `.sopsrc` for local project/workspace specific configuration (AWS profile & GCP credentials).
 - Support for adjusting `sops.defaults.awsProfile` & `sops.defaults.gcpCredentialsPath` configuration of vscode extension.
+- Handle creation of new sops files if `creation_rules` of SOPS config `.sops.yaml` match currently saved file.
 
 ## [0.0.2] - 2020-07-21
 ### Fixed
