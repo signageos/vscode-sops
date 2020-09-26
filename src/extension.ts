@@ -21,11 +21,14 @@ const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
 	binPath = 'binPath',
+	defaultAwsProfile = 'defaultAwsProfile',
 	configPath = 'configPath', // Run Control path
 }
 interface IRunControl {
+	awsProfile?: string;
 }
 const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
+const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
 const DECRYPTED_PREFIX = '.decrypted~';
 const getSopsBinPath = () => {
@@ -276,10 +279,18 @@ async function fileExists(uri: vscode.Uri) {
 }
 
 async function getSopsGeneralOptions() {
+	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
+	debug('config', { defaultAwsProfile });
 	const rc = await getRunControl();
+	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
 
 	const sopsGeneralArgs = [];
 	const sopsGeneralEnvVars: any = {};
+
+	if (awsProfile) {
+		sopsGeneralArgs.push('--aws-profile', awsProfile);
+		sopsGeneralEnvVars[AWS_PROFILE_ENV_VAR_NAME] = awsProfile; // --aws-profile argument doesn't work well
+	}
 
 	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
 

@@ -45,6 +45,11 @@
 					"scope": "resource",
 					"default": "./.vscodesopsrc",
 					"description": "Absolute path (Starts with /) or Relative path to project (Starts with ./) where the configuration for this extension is looking for (default: Looking for file `.vscodesopsrc` in root of project) See [Config file](#config-file) section."
+				},
+				"sops.defaultAwsProfile": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Default AWS profile name which will be used for sops command `--aws-profile` (default: uses from environment variable `$AWS_PROFILE`)"
 				}
 			}
 		}
