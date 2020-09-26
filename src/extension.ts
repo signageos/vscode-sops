@@ -21,7 +21,11 @@ const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
 	binPath = 'binPath',
+	configPath = 'configPath', // Run Control path
 }
+interface IRunControl {
+}
+const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
 
 const DECRYPTED_PREFIX = '.decrypted~';
 const getSopsBinPath = () => {
@@ -174,9 +178,11 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 	try {
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
 		const decryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
+				...sopsGeneralArgs,
 				'--output-type',
 				fileFormat,
 				'--input-type',
@@ -184,7 +190,13 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 				'--decrypt',
 				tmpEncryptedFilePath,
 			],
-			spawnOptions,
+			{
+				...spawnOptions,
+				env: {
+					...process.env,
+					...sopsGeneralEnvVars,
+				},
+			},
 		);
 		if (decryptProcess.error) {
 			throw decryptProcess.error;
@@ -214,9 +226,11 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
 		const encryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
+				...sopsGeneralArgs,
 				'--output-type',
 				fileFormat,
 				'--input-type',
@@ -227,6 +241,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 				...spawnOptions,
 				env: {
 					...process.env,
+					...sopsGeneralEnvVars,
 					EDITOR: tmpFakeDecryptedEditorPath,
 					VSCODE_SOPS_DECRYPTED_FILE_PATH: tmpDecryptedFilePath,
 				},
@@ -258,6 +273,57 @@ async function fileExists(uri: vscode.Uri) {
 	} catch (error) {
 		return false;
 	}
+}
+
+async function getSopsGeneralOptions() {
+	const rc = await getRunControl();
+
+	const sopsGeneralArgs = [];
+	const sopsGeneralEnvVars: any = {};
+
+	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
+
+	return {
+		sopsGeneralArgs,
+		sopsGeneralEnvVars,
+	};
+}
+
+async function getRunControl(): Promise<IRunControl> {
+	const possibleRCUris: vscode.Uri[] = [];
+
+	let rcPath = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.configPath);
+	if (vscode.workspace.workspaceFolders) {
+		if (typeof rcPath === 'string') {
+			for (const rootPath of vscode.workspace.workspaceFolders) {
+				if (rcPath.charAt(0) === '/') { // absolute path in rc file
+					possibleRCUris.push(rootPath.uri.with({ path: rcPath }));
+				} else {
+					possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, rcPath) }));
+				}
+			}
+		}
+		if (!rcPath) {
+			for (const rootPath of vscode.workspace.workspaceFolders) {
+				possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, DEFAULT_RUN_CONTROL_FILENAME) }));
+			}
+		}
+	}
+
+	for (const rcUri of possibleRCUris) {
+		if (await fileExists(rcUri)) {
+			const rcContent = await getFileContent(rcUri);
+			try {
+				const rc: IRunControl = YAML.parse(rcContent);
+				debug('Parsed Run Control', rc);
+				return rc;
+			} catch (error) {
+				debug('Invalid RC file format', error);
+			}
+		}
+	}
+
+	return {};
 }
 
 export function activate(context: vscode.ExtensionContext) {
