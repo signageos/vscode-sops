@@ -17,8 +17,21 @@ const fs = require('fs');
 fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYPTED_FILE_PATH));
 `;
 
+const CONFIG_BASE_SECTION = 'sops';
+enum ConfigName {
+	enabled = 'enabled',
+	binPath = 'binPath',
+}
+
 const DECRYPTED_PREFIX = '.decrypted~';
-let sopsBinPath = 'sops'; // TODO configuration
+const getSopsBinPath = () => {
+	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
+	return sopsPath ?? 'sops';
+};
+const isEnabled = () => {
+	const enabled: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled);
+	return enabled ?? true;
+};
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
@@ -162,7 +175,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
 		const decryptProcess = child_process.spawnSync(
-			sopsBinPath,
+			getSopsBinPath(),
 			[
 				'--output-type',
 				fileFormat,
@@ -202,7 +215,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
 		const encryptProcess = child_process.spawnSync(
-			sopsBinPath,
+			getSopsBinPath(),
 			[
 				'--output-type',
 				fileFormat,
@@ -254,6 +267,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		if (lastActiveEditor) {
 			const document = lastActiveEditor.document;
 			try {
@@ -271,6 +288,10 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	vscode.workspace.onDidOpenTextDocument(async (document) => {
 		debug('open document', document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		try {
 			if (document.languageId === 'yaml') {
 				await handleFile(document, 'yaml');
@@ -286,6 +307,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.workspace.onDidSaveTextDocument(async (document) => {
 		debug('save document', document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		try {
 			if (document.languageId === 'yaml') {
 				await handleSaveFile(document, 'yaml');

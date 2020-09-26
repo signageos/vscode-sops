@@ -24,7 +24,24 @@
 				"command": "extension.sops",
 				"title": "SOPS"
 			}
-		]
+		],
+		"configuration": {
+			"title": "SOPS",
+			"properties": {
+				"sops.enabled": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "enable/disable this extension (default: true)"
+				},
+				"sops.binPath": {
+					"type": "string",
+					"scope": "resource",
+					"default": "sops",
+					"description": "Path to SOPS binary (default: executables from `$PATH`)"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

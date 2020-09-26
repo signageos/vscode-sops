@@ -19,7 +19,7 @@ VSCode extension which allows to realtime edit [SOPS](https://github.com/mozilla
 
 ## Extension Settings
 *Options are currently unavailable in 0.0.1 version*
-* `sops.enable`: enable/disable this extension
+* `sops.enable`: enable/disable this extension (default: true)
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 
 ## Known Issues
