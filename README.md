@@ -37,11 +37,7 @@ gcpCredentialsPath: /home/user/Downloads/my-key.json
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
-
-### 0.0.1
-
-Initial release of VSCode SOPS extension
+See https://github.com/signageos/vscode-sops/blob/master/CHANGELOG.md file.
 
 -----------------------------------------------------------------------------------------------------------
 
