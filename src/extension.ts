@@ -234,7 +234,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 			throw decryptProcess.error;
 		}
 		if (decryptProcess.stderr.toString()) {
-			throw new Error(decryptProcess.stderr.toString());
+			console.warn(decryptProcess.stderr.toString());
 		}
 		const decryptedContent = decryptProcess.stdout.toString();
 		debug('Decrypted', uri.path, decryptedContent);
@@ -283,7 +283,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 			throw encryptProcess.error;
 		}
 		if (encryptProcess.stderr.toString()) {
-			throw new Error(encryptProcess.stderr.toString());
+			console.warn(encryptProcess.stderr.toString());
 		}
 		const encryptedContent = (await fs.readFile(tmpEncryptedFilePath)).toString();
 		debug('Encrypted', uri.path, encryptedContent);
