@@ -336,7 +336,7 @@ async function getRunControl(): Promise<IRunControl> {
 			try {
 				const rc: IRunControl = YAML.parse(rcContent);
 				debug('Parsed Run Control', rc);
-				return rc;
+				return rc ?? {};
 			} catch (error) {
 				debug('Invalid RC file format', error);
 			}
