@@ -21,8 +21,8 @@ const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
 	binPath = 'binPath',
-	defaultAwsProfile = 'defaultAwsProfile',
-	defaultGcpCredentialsPath = 'defaultGcpCredentialsPath',
+	defaultAwsProfile = 'defaults.awsProfile',
+	defaultGcpCredentialsPath = 'defaults.gcpCredentialsPath',
 	configPath = 'configPath', // Run Control path
 }
 interface IRunControl {
