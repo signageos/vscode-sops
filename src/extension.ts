@@ -17,8 +17,31 @@ const fs = require('fs');
 fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYPTED_FILE_PATH));
 `;
 
+const CONFIG_BASE_SECTION = 'sops';
+enum ConfigName {
+	enabled = 'enabled',
+	binPath = 'binPath',
+	defaultAwsProfile = 'defaultAwsProfile',
+	defaultGcpCredentialsPath = 'defaultGcpCredentialsPath',
+	configPath = 'configPath', // Run Control path
+}
+interface IRunControl {
+	awsProfile?: string;
+	gcpCredentialsPath?: string;
+}
+const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
+const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
+const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
+
 const DECRYPTED_PREFIX = '.decrypted~';
-let sopsBinPath = 'sops'; // TODO configuration
+const getSopsBinPath = () => {
+	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
+	return sopsPath ?? 'sops';
+};
+const isEnabled = () => {
+	const enabled: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled);
+	return enabled ?? true;
+};
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
@@ -161,9 +184,11 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 	try {
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
 		const decryptProcess = child_process.spawnSync(
-			sopsBinPath,
+			getSopsBinPath(),
 			[
+				...sopsGeneralArgs,
 				'--output-type',
 				fileFormat,
 				'--input-type',
@@ -171,7 +196,13 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 				'--decrypt',
 				tmpEncryptedFilePath,
 			],
-			spawnOptions,
+			{
+				...spawnOptions,
+				env: {
+					...process.env,
+					...sopsGeneralEnvVars,
+				},
+			},
 		);
 		if (decryptProcess.error) {
 			throw decryptProcess.error;
@@ -201,9 +232,11 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
 		const encryptProcess = child_process.spawnSync(
-			sopsBinPath,
+			getSopsBinPath(),
 			[
+				...sopsGeneralArgs,
 				'--output-type',
 				fileFormat,
 				'--input-type',
@@ -214,6 +247,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 				...spawnOptions,
 				env: {
 					...process.env,
+					...sopsGeneralEnvVars,
 					EDITOR: tmpFakeDecryptedEditorPath,
 					VSCODE_SOPS_DECRYPTED_FILE_PATH: tmpDecryptedFilePath,
 				},
@@ -247,6 +281,71 @@ async function fileExists(uri: vscode.Uri) {
 	}
 }
 
+async function getSopsGeneralOptions() {
+	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
+	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
+	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath });
+	const rc = await getRunControl();
+	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
+	const gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
+
+	const sopsGeneralArgs = [];
+	const sopsGeneralEnvVars: any = {};
+
+	if (awsProfile) {
+		sopsGeneralArgs.push('--aws-profile', awsProfile);
+		sopsGeneralEnvVars[AWS_PROFILE_ENV_VAR_NAME] = awsProfile; // --aws-profile argument doesn't work well
+	}
+
+	if (gcpCredentialsPath) {
+		sopsGeneralEnvVars[GCP_CREDENTIALS_ENV_VAR_NAME] = gcpCredentialsPath;
+	}
+
+	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
+
+	return {
+		sopsGeneralArgs,
+		sopsGeneralEnvVars,
+	};
+}
+
+async function getRunControl(): Promise<IRunControl> {
+	const possibleRCUris: vscode.Uri[] = [];
+
+	let rcPath = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.configPath);
+	if (vscode.workspace.workspaceFolders) {
+		if (typeof rcPath === 'string') {
+			for (const rootPath of vscode.workspace.workspaceFolders) {
+				if (rcPath.charAt(0) === '/') { // absolute path in rc file
+					possibleRCUris.push(rootPath.uri.with({ path: rcPath }));
+				} else {
+					possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, rcPath) }));
+				}
+			}
+		}
+		if (!rcPath) {
+			for (const rootPath of vscode.workspace.workspaceFolders) {
+				possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, DEFAULT_RUN_CONTROL_FILENAME) }));
+			}
+		}
+	}
+
+	for (const rcUri of possibleRCUris) {
+		if (await fileExists(rcUri)) {
+			const rcContent = await getFileContent(rcUri);
+			try {
+				const rc: IRunControl = YAML.parse(rcContent);
+				debug('Parsed Run Control', rc);
+				return rc;
+			} catch (error) {
+				debug('Invalid RC file format', error);
+			}
+		}
+	}
+
+	return {};
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
@@ -254,6 +353,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		if (lastActiveEditor) {
 			const document = lastActiveEditor.document;
 			try {
@@ -271,6 +374,10 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	vscode.workspace.onDidOpenTextDocument(async (document) => {
 		debug('open document', document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		try {
 			if (document.languageId === 'yaml') {
 				await handleFile(document, 'yaml');
@@ -286,6 +393,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.workspace.onDidSaveTextDocument(async (document) => {
 		debug('save document', document.fileName);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
 		try {
 			if (document.languageId === 'yaml') {
 				await handleSaveFile(document, 'yaml');
