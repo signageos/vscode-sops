@@ -29,7 +29,7 @@ interface IRunControl {
 	awsProfile?: string;
 	gcpCredentialsPath?: string;
 }
-const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
+const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 

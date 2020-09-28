@@ -7,7 +7,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 ### Added
 - Configuration `sops.enabled`, `sops.binPath` works now as expected.
-- Run control (config) file `.vscodesopsrc` for local project/workspace specific configuration (AWS profile & GCP credentials).
+- Run control (config) file `.sopsrc` for local project/workspace specific configuration (AWS profile & GCP credentials).
 - Support for adjusting `sops.defaultAwsProfile` & `sops.defaultGcpCredentialsPath` configuration of vscode extension.
 
 ## [0.0.2] - 2020-07-21
