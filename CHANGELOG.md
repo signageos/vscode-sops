@@ -4,7 +4,7 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.1.1]
 ### Fixed
 - `sops.creationEnabled` has to be explicitly enabled to allow encrypt not encrpyted files
 
