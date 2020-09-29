@@ -25,6 +25,7 @@ VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) support
 * `sops.configPath`: Path (absolute or relative) to the configuration for this extension (empty: defaults to `.sopsrc` in root of project) See [Config file](#config-file) section.
 * `sops.defaults.awsProfile`: Default AWS profile name which will be used for sops command `--aws-profile` (empty: defaults to environment variable `$AWS_PROFILE`)
 * `sops.defaults.gcpCredentialsPath`: Default path used to find GCP credentials. Overrides the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (empty: defaults to environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)
+* `sops.creationEnabled`: enable/disable this extension to try encrypt files included in .sops.yaml path_regex when is not encrypted yet (default: false)
 
 ## Config file
 > Named `.sopsrc` in project root by default and is in YAML format.

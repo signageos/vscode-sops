@@ -34,6 +34,12 @@
 					"default": true,
 					"description": "enable/disable this extension (default: true)"
 				},
+				"sops.creationEnabled": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "enable/disable this extension to try encrypt files included in .sops.yaml path_regex when is not encrypted yet (default: false)"
+				},
 				"sops.binPath": {
 					"type": "string",
 					"scope": "resource",

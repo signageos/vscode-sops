@@ -20,6 +20,7 @@ fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYP
 const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
+	creationEnabled = 'creationEnabled',
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaults.awsProfile',
 	defaultGcpCredentialsPath = 'defaults.gcpCredentialsPath',
@@ -87,7 +88,7 @@ async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFo
 			progress.report({ message: `Encrypting "${encryptedUri.path}" SOPS file` });
 			await overrideEncryptedFile(decryptedUri, encryptedUri, fileFormat);
 		});
-	} else {
+	} else if (vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.creationEnabled)) {
 		await vscode.window.withProgress(progressOptions, async (progress) => {
 			progress.report({ message: `Trying encrypting new "${decryptedUri.path}" SOPS file` });
 			await tryCreateEncryptedFile(decryptedUri, fileFormat);
