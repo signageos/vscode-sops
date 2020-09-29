@@ -20,7 +20,6 @@ VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) support
 - For encryption of file back after changes, you have to have [Node.js](https://nodejs.org/en/) installed on your PC (`node` bin in your `$PATH`)
 
 ## Extension Settings
-*Options are currently unavailable in 0.0.1 version*
 * `sops.enable`: enable/disable this extension (default: true)
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 * `sops.configPath`: Path (absolute or relative) to the configuration for this extension (empty: defaults to `.sopsrc` in root of project) See [Config file](#config-file) section.
