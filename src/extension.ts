@@ -33,6 +33,8 @@ const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
+const SOPS_CONFIG_FILENAME = '.sops.yaml';
+
 const DECRYPTED_PREFIX = '.decrypted~';
 const getSopsBinPath = () => {
 	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
@@ -70,6 +72,9 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
 	debug('handleSaveFile', document, fileFormat);
 	const decryptedUri = document.uri;
+	const progressOptions: vscode.ProgressOptions = {
+		location: vscode.ProgressLocation.Notification,
+	};
 	if (path.basename(decryptedUri.path).startsWith(DECRYPTED_PREFIX)) {
 		const encryptedFileName = path.join(
 			path.dirname(decryptedUri.path),
@@ -77,13 +82,16 @@ async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFo
 		);
 		debug('Encrypted filename', encryptedFileName);
 		const encryptedUri = decryptedUri.with({ path: encryptedFileName });
-		debug('Encrypted ur', encryptedUri);
-		const progressOptions: vscode.ProgressOptions = {
-			location: vscode.ProgressLocation.Notification,
-		};
+		debug('Encrypted uri', encryptedUri);
 		await vscode.window.withProgress(progressOptions, async (progress) => {
 			progress.report({ message: `Encrypting "${encryptedUri.path}" SOPS file` });
 			await overrideEncryptedFile(decryptedUri, encryptedUri, fileFormat);
+		});
+	} else {
+		await vscode.window.withProgress(progressOptions, async (progress) => {
+			progress.report({ message: `Trying encrypting new "${decryptedUri.path}" SOPS file` });
+			await tryCreateEncryptedFile(decryptedUri, fileFormat);
+			await handleFile(document, fileFormat);
 		});
 	}
 }
@@ -99,6 +107,24 @@ async function overrideEncryptedFile(decryptedUri: vscode.Uri, encryptedUri: vsc
 		debug('Updating encrypted');
 		await encryptFileToFile(decryptedUri, encryptedUri, fileFormat);
 	}
+}
+
+async function tryCreateEncryptedFile(decryptedUri: vscode.Uri, fileFormat: IFileFormat) {
+	try {
+		const encryptedContent = await getNewEncryptedFileContent(decryptedUri, fileFormat);
+		const encryptedUri = decryptedUri; // overwrite current file
+		await vscode.workspace.fs.writeFile(encryptedUri, convertUtf8ToUint8Array(encryptedContent));
+	} catch (error) {
+		if (isNoMatchingRulesError(error)) {
+			debug('No matching creation rules found', decryptedUri.path);
+		} else {
+			throw error;
+		}
+	}
+}
+
+function isNoMatchingRulesError(error: Error) {
+	return error?.message?.includes('no matching creation rules found');
 }
 
 function getParser(fileFormat: IFileFormat) {
@@ -208,12 +234,12 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 			throw decryptProcess.error;
 		}
 		if (decryptProcess.stderr.toString()) {
-			throw new Error(decryptProcess.stderr.toString());
+			console.warn(decryptProcess.stderr.toString());
 		}
 		const decryptedContent = decryptProcess.stdout.toString();
 		debug('Decrypted', uri.path, decryptedContent);
 		if (!decryptedContent) {
-			throw new Error(`Could not decrypt file: ${uri.path}`);
+			throw new Error(`Could not decrypt file: ${uri.path}, ${decryptProcess.stderr.toString()}`);
 		}
 		return decryptedContent;
 	} finally {
@@ -257,18 +283,94 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 			throw encryptProcess.error;
 		}
 		if (encryptProcess.stderr.toString()) {
-			throw new Error(encryptProcess.stderr.toString());
+			console.warn(encryptProcess.stderr.toString());
 		}
 		const encryptedContent = (await fs.readFile(tmpEncryptedFilePath)).toString();
 		debug('Encrypted', uri.path, encryptedContent);
 		if (!encryptedContent) {
-			throw new Error(`Could not decrypt file: ${uri.path}`);
+			throw new Error(`Could not encrypt file: ${uri.path}, ${encryptProcess.stderr.toString()}`);
 		}
 		return encryptedContent;
 	} finally {
 		await fs.remove(tmpDecryptedFilePath);
 		await fs.remove(tmpEncryptedFilePath);
 		await fs.remove(tmpFakeDecryptedEditorPath);
+	}
+}
+
+async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: IFileFormat) {
+	const tmpDirectoryPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
+	await fs.ensureDir(tmpDirectoryPath);
+
+	try {
+		const decryptedContent = await getFileContent(decryptedUri);
+		const sopsConfigUri = await findSopsConfigRecursive(decryptedUri.with({ path: path.dirname(decryptedUri.path) }));
+
+		let sopsConfigArgs: string[] = [];
+		let decryptedRelativePathToSopsConfig: string;
+		if (sopsConfigUri) {
+			decryptedRelativePathToSopsConfig = path.relative(path.dirname(sopsConfigUri.path), decryptedUri.path);
+			const sopsConfigContent = await getFileContent(sopsConfigUri);
+			debug('SOP config content', sopsConfigContent);
+			const tmpSopsConfigPath = path.join(tmpDirectoryPath, path.basename(sopsConfigUri.path));
+			await fs.writeFile(tmpSopsConfigPath, sopsConfigContent, { mode: 0o600 });
+			sopsConfigArgs = ['--config', tmpSopsConfigPath];
+			await fs.ensureDir(path.join(tmpDirectoryPath, path.dirname(decryptedRelativePathToSopsConfig)));
+		} else {
+			decryptedRelativePathToSopsConfig = path.basename(decryptedUri.path);
+		}
+		debug('Decrypted relative path to config', decryptedRelativePathToSopsConfig);
+
+		const tmpDecryptedFilePath = path.join(tmpDirectoryPath, decryptedRelativePathToSopsConfig);
+		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
+		debug('Encrypting', decryptedUri.path, decryptedContent, tmpDecryptedFilePath);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const encryptProcess = child_process.spawnSync(
+			getSopsBinPath(),
+			[
+				...sopsGeneralArgs,
+				...sopsConfigArgs,
+				'--output-type',
+				fileFormat,
+				'--input-type',
+				fileFormat,
+				'--encrypt',
+				tmpDecryptedFilePath,
+			],
+			{
+				...spawnOptions,
+				env: {
+					...process.env,
+					...sopsGeneralEnvVars,
+				},
+			},
+		);
+		if (encryptProcess.error) {
+			throw encryptProcess.error;
+		}
+		if (encryptProcess.stderr.toString()) {
+			console.warn(encryptProcess.stderr.toString());
+		}
+		const encryptedContent = encryptProcess.stdout.toString();
+		debug('Encrypted', decryptedUri.path, encryptedContent);
+		if (!encryptedContent) {
+			throw new Error(`Could not encrypt new file: ${decryptedUri.path}, ${encryptProcess.stderr.toString()}`);
+		}
+		return encryptedContent;
+	} finally {
+		await fs.remove(tmpDirectoryPath);
+	}
+}
+
+async function findSopsConfigRecursive(dirUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+	const possibleSopsConfigUri = dirUri.with({ path: path.join(dirUri.path, SOPS_CONFIG_FILENAME) });
+	if (await fileExists(possibleSopsConfigUri)) {
+		debug('SOPS config', possibleSopsConfigUri.path);
+		return possibleSopsConfigUri;
+	} else if (path.dirname(dirUri.path) !== '.') {
+		return await findSopsConfigRecursive(dirUri.with({ path: path.dirname(dirUri.path) }));
+	} else {
+		return undefined;
 	}
 }
 
