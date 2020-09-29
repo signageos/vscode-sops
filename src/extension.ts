@@ -21,15 +21,15 @@ const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
 	binPath = 'binPath',
-	defaultAwsProfile = 'defaultAwsProfile',
-	defaultGcpCredentialsPath = 'defaultGcpCredentialsPath',
+	defaultAwsProfile = 'defaults.awsProfile',
+	defaultGcpCredentialsPath = 'defaults.gcpCredentialsPath',
 	configPath = 'configPath', // Run Control path
 }
 interface IRunControl {
 	awsProfile?: string;
 	gcpCredentialsPath?: string;
 }
-const DEFAULT_RUN_CONTROL_FILENAME = '.vscodesopsrc';
+const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
@@ -336,7 +336,7 @@ async function getRunControl(): Promise<IRunControl> {
 			try {
 				const rc: IRunControl = YAML.parse(rcContent);
 				debug('Parsed Run Control', rc);
-				return rc;
+				return rc ?? {};
 			} catch (error) {
 				debug('Invalid RC file format', error);
 			}
