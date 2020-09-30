@@ -390,7 +390,7 @@ async function getSopsGeneralOptions() {
 	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath });
 	const rc = await getRunControl();
 	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
-	const gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
+	let gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
 
 	const sopsGeneralArgs = [];
 	const sopsGeneralEnvVars: any = {};
@@ -401,6 +401,16 @@ async function getSopsGeneralOptions() {
 	}
 
 	if (gcpCredentialsPath) {
+		if (!path.isAbsolute(gcpCredentialsPath) && vscode.workspace.workspaceFolders) {
+			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
+				const gcpCredentialsAbsPath = path.join(workspaceFolder.uri.path, gcpCredentialsPath);
+				const gcpCredentialsUri = workspaceFolder.uri.with({ path: gcpCredentialsAbsPath });
+				if (await fileExists(gcpCredentialsUri)) {
+					gcpCredentialsPath = gcpCredentialsAbsPath;
+					break;
+				}
+			}
+		}
 		sopsGeneralEnvVars[GCP_CREDENTIALS_ENV_VAR_NAME] = gcpCredentialsPath;
 	}
 
