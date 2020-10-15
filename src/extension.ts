@@ -3,6 +3,7 @@ import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as child_process from 'child_process';
 import * as YAML from 'yaml';
+import * as INI from 'ini';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as Debug from 'debug';
@@ -49,7 +50,12 @@ let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
 
-type IFileFormat = 'yaml' | 'json';
+// TODO dotenv
+type IFileFormat = 'yaml' | 'json' | 'ini';
+
+function isIFileFormat(arg: string): arg is IFileFormat {
+	return ['yaml', 'json', 'ini'].includes(arg);
+}
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
 	debug('handleFile', document, fileFormat);
@@ -57,14 +63,14 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
 		const fileData = parser(fileContent);
-		debug('YAML', fileData);
+		debug('File content', fileData);
 		if (typeof fileData.sops?.version === 'string') {
 			const progressOptions: vscode.ProgressOptions = {
 				location: vscode.ProgressLocation.Notification,
 			};
 			await vscode.window.withProgress(progressOptions, async (progress) => {
 				progress.report({ message: `Decrypting "${document.fileName}" SOPS file` });
-				await ensureOpenDecryptedFile(document.uri, 'yaml');
+				await ensureOpenDecryptedFile(document.uri, document.languageId as IFileFormat);
 			});
 		}
 	}
@@ -132,6 +138,7 @@ function getParser(fileFormat: IFileFormat) {
 	switch (fileFormat) {
 		case 'yaml': return YAML.parse;
 		case 'json': return JSON.parse;
+		case 'ini': return INI.parse;
 	}
 }
 
@@ -474,7 +481,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const document = lastActiveEditor.document;
 			try {
 				if (path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
-					if (document.languageId === 'yaml' || document.languageId === 'json') {
+					if (isIFileFormat(document.languageId)) {
 						await closeFile(document.uri);
 					}
 				}
@@ -492,12 +499,9 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try {
-			if (document.languageId === 'yaml') {
-				await handleFile(document, 'yaml');
-			} else if (document.languageId === 'json') {
-				await handleFile(document, 'json');
+			if (isIFileFormat(document.languageId)) {
+				await handleFile(document, document.languageId);
 			}
-			// TODO dotenv
 		} catch (error) {
 			debug('Cannot parse file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
@@ -511,12 +515,9 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try {
-			if (document.languageId === 'yaml') {
-				await handleSaveFile(document, 'yaml');
-			} else if (document.languageId === 'json') {
-				await handleSaveFile(document, 'json');
+			if (isIFileFormat(document.languageId)) {
+				await handleSaveFile(document, document.languageId);
 			}
-			// TODO dotenv
 		} catch (error) {
 			debug('Cannot encrypt file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error.message}`);

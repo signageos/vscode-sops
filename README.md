@@ -6,7 +6,7 @@ The homepage of VSCode extension is located on https://github.com/signageos/vsco
 ## Features
 
 VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) supports:
-- Realtime editing of encrypted yaml/json files in-place in your project.
+- Realtime editing of encrypted `yaml`, `json` and `ini` files in-place in your project.
 - Create new encrypted yaml/json file using `.sops.yaml` config creation_rules if available.
 
 ## Requirements
