@@ -59,7 +59,7 @@ function isIFileFormat(languageId: string): languageId is IFileFormat {
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
 	debug('handleFile', document, fileFormat);
-	if (!path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
+	if (!isDecryptedFile(document.uri)) {
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
 		const fileData = parser(fileContent);
@@ -82,13 +82,9 @@ async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFo
 	const progressOptions: vscode.ProgressOptions = {
 		location: vscode.ProgressLocation.Notification,
 	};
-	if (path.basename(decryptedUri.path).startsWith(DECRYPTED_PREFIX)) {
-		const encryptedFileName = path.join(
-			path.dirname(decryptedUri.path),
-			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length)
-		);
-		debug('Encrypted filename', encryptedFileName);
-		const encryptedUri = decryptedUri.with({ path: encryptedFileName });
+	const encryptedUri = getEncryptedFileUri(decryptedUri);
+	if (encryptedUri) {
+		debug('Encrypted filename', encryptedUri.path);
 		debug('Encrypted uri', encryptedUri);
 		await vscode.window.withProgress(progressOptions, async (progress) => {
 			progress.report({ message: `Encrypting "${encryptedUri.path}" SOPS file` });
@@ -144,9 +140,7 @@ function getParser(fileFormat: IFileFormat) {
 
 async function ensureOpenDecryptedFile(encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
 	debug('Opening', encryptedUri.path);
-	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
-	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
-	const decryptedUri = encryptedUri.with({ path: decryptedFilePath });
+	const decryptedUri = getDecryptedFileUri(encryptedUri);
 
 	if (!await fileExists(decryptedUri)) {
 		debug('Not decrypted', decryptedUri.path);
@@ -464,6 +458,26 @@ async function getRunControl(): Promise<IRunControl> {
 	}
 
 	return {};
+}
+
+function isDecryptedFile(uri: vscode.Uri) {
+	return path.basename(uri.path).startsWith(DECRYPTED_PREFIX);
+}
+
+function getDecryptedFileUri(encryptedUri: vscode.Uri): vscode.Uri {
+	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
+	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
+	const decryptedFileUri = encryptedUri.with({ path: decryptedFilePath });
+	return decryptedFileUri;
+}
+
+function getEncryptedFileUri(decryptedUri: vscode.Uri): vscode.Uri | null {
+	return isDecryptedFile(decryptedUri) ? decryptedUri.with({
+		path: path.join(
+			path.dirname(decryptedUri.path),
+			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length),
+		),
+	}) : null;
 }
 
 export function activate(context: vscode.ExtensionContext) {
