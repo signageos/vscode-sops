@@ -35,6 +35,10 @@ const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
+enum Command {
+	TOGGLE_ORIGINAL_FILE = 'sops.toggle_original_file',
+}
+
 const SOPS_CONFIG_FILENAME = '.sops.yaml';
 
 const DECRYPTED_PREFIX = '.decrypted~';
@@ -49,6 +53,15 @@ const isEnabled = () => {
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
+
+function getToggleBarText(toggleToEncDec: 'encrypted' | 'decrypted' | 'enc/dec' = 'enc/dec') {
+	return `SOPS: toggle ${toggleToEncDec} file`;
+}
+
+const toggleStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
+toggleStatusBarItem.text = getToggleBarText();
+toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
 // TODO dotenv
 type IFileFormat = 'yaml' | 'json' | 'ini';
@@ -494,6 +507,56 @@ export function activate(context: vscode.ExtensionContext) {
 	let lastActiveEditor: vscode.TextEditor | undefined;
 	const decryptedFileUris: vscode.Uri[] = [];
 
+	async function syncStatusBar() {
+		debug('syncing status bar');
+
+		if (lastActiveEditor) {
+			if (isDecryptedFile(lastActiveEditor.document.uri)) {
+				toggleStatusBarItem.text = getToggleBarText('encrypted');
+				debug('showing status bar for decrypted file', lastActiveEditor.document.uri.path);
+				toggleStatusBarItem.show();
+				return;
+			}
+			const decryptedFileUri = getDecryptedFileUri(lastActiveEditor.document.uri);
+			if (decryptedFileUri && await fileExists(decryptedFileUri)) {
+				toggleStatusBarItem.text = getToggleBarText('decrypted');
+				debug('showing status bar for encrypted file', lastActiveEditor.document.uri.path);
+				toggleStatusBarItem.show();
+				return;
+			}
+		}
+		debug('hiding status bar');
+		toggleStatusBarItem.hide();
+	}
+
+	vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, async () => {
+		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
+
+		if (lastActiveEditor) {
+			let fileUriToOpen: vscode.Uri | undefined;
+
+			const encryptedFileUri = getEncryptedFileUri(lastActiveEditor.document.uri);
+			if (encryptedFileUri && await fileExists(encryptedFileUri)) {
+				debug('command encrypted file exists', encryptedFileUri.path);
+				fileUriToOpen = encryptedFileUri;
+			}
+
+			const decryptedFileUri = getDecryptedFileUri(lastActiveEditor.document.uri);
+			if (decryptedFileUri && await fileExists(decryptedFileUri)) {
+				debug('command decrypted file exists', decryptedFileUri.path);
+				fileUriToOpen = decryptedFileUri;
+			}
+
+			if (fileUriToOpen) {
+				await openFile(fileUriToOpen);
+			}
+		}
+	});
+
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
 		if (!isEnabled()) {
@@ -521,6 +584,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 			lastActiveEditor = editor;
 		}
+
+		await syncStatusBar();
 	});
 	vscode.workspace.onDidOpenTextDocument(async (document) => {
 		debug('open document', document.fileName);
@@ -536,6 +601,8 @@ export function activate(context: vscode.ExtensionContext) {
 			debug('Cannot parse file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
 		}
+
+		await syncStatusBar();
 	});
 
 	vscode.workspace.onDidSaveTextDocument(async (document) => {

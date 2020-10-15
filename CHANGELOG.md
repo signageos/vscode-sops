@@ -7,6 +7,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 ### Added
 - Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)
+- Button in bottom status bar for easier toggling between encrypted & decrypted files
 
 ## [0.2.0]
 ### Added
