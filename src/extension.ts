@@ -53,8 +53,8 @@ let spawnOptions: child_process.SpawnSyncOptions = {
 // TODO dotenv
 type IFileFormat = 'yaml' | 'json' | 'ini';
 
-function isIFileFormat(arg: string): arg is IFileFormat {
-	return ['yaml', 'json', 'ini'].includes(arg);
+function isIFileFormat(languageId: string): languageId is IFileFormat {
+	return ['yaml', 'json', 'ini'].includes(languageId);
 }
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
