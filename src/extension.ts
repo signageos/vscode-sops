@@ -178,9 +178,9 @@ async function openFile(uri: vscode.Uri) {
 	return await vscode.window.showTextDocument(uri);
 }
 
-async function closeFile(uri: vscode.Uri) {
-	const visibleEditor = vscode.window.visibleTextEditors.find((editor) => editor.document.uri.path === uri.path);
-	if (!visibleEditor) {
+async function closeAndDeleteFile(uri: vscode.Uri) {
+	// TODO close file first
+	if (await fileExists(uri)) {
 		await vscode.workspace.fs.delete(uri);
 	}
 }
@@ -480,10 +480,19 @@ function getEncryptedFileUri(decryptedUri: vscode.Uri): vscode.Uri | null {
 	}) : null;
 }
 
+async function isSecretPairMember(uri: vscode.Uri) {
+	if (isDecryptedFile(uri) || await fileExists(getDecryptedFileUri(uri))) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
 	let lastActiveEditor: vscode.TextEditor | undefined;
+	const decryptedFileUris: vscode.Uri[] = [];
 
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
@@ -491,20 +500,27 @@ export function activate(context: vscode.ExtensionContext) {
 			debug('Extension is disabled by configuration');
 			return;
 		}
-		if (lastActiveEditor) {
-			const document = lastActiveEditor.document;
-			try {
-				if (path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
-					if (isIFileFormat(document.languageId)) {
-						await closeFile(document.uri);
+
+		if (editor) {
+			const document = editor.document;
+			if (isDecryptedFile(document.uri)) {
+				decryptedFileUris.push(document.uri);
+			}
+
+			if (!await isSecretPairMember(document.uri)) {
+				for (const decryptedFileUri of decryptedFileUris) {
+					try {
+						await closeAndDeleteFile(decryptedFileUri);
+					} catch (error) {
+						debug('Cannot close file', document.fileName, error);
+						vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
 					}
 				}
-			} catch (error) {
-				debug('Cannot close file', document.fileName, error);
-				vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
+				decryptedFileUris.splice(0, decryptedFileUris.length);
 			}
+
+			lastActiveEditor = editor;
 		}
-		lastActiveEditor = editor;
 	});
 	vscode.workspace.onDidOpenTextDocument(async (document) => {
 		debug('open document', document.fileName);
@@ -513,7 +529,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try {
-			if (isIFileFormat(document.languageId)) {
+			if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
 				await handleFile(document, document.languageId);
 			}
 		} catch (error) {
