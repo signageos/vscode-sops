@@ -8,7 +8,16 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as Debug from 'debug';
 import { TextEncoder, TextDecoder } from 'text-encoding';
-const debug = Debug('@signageos/vscode-sops');
+
+const DEBUG_NAMESPACE = '@signageos/vscode-sops';
+function enableDebug() {
+	const outputChannel = vscode.window.createOutputChannel(DEBUG_NAMESPACE);
+	(Debug as any).log = (...args: any[]) => outputChannel.appendLine(args.join(', '));
+	Debug.enable(DEBUG_NAMESPACE);
+};
+//enableDebug(); // Uncomment this line to show debug logs in output
+
+const debug = Debug(DEBUG_NAMESPACE);
 
 const convertUtf8ToUint8Array = (input: string) => new TextEncoder("utf-8").encode(input);
 const convertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
