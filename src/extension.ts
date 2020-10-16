@@ -591,24 +591,16 @@ export function activate(context: vscode.ExtensionContext) {
 				decryptedFileUris.splice(0, decryptedFileUris.length);
 			}
 
-			lastActiveEditor = editor;
-		}
-
-		await syncStatusBar();
-	});
-	vscode.workspace.onDidOpenTextDocument(async (document) => {
-		debug('open document', document.fileName);
-		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
-			return;
-		}
-		try {
-			if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
-				await handleFile(document, document.languageId);
+			try {
+				if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
+					await handleFile(document, document.languageId);
+				}
+			} catch (error) {
+				debug('Cannot parse file', document.fileName, error);
+				vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
 			}
-		} catch (error) {
-			debug('Cannot parse file', document.fileName, error);
-			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+
+			lastActiveEditor = editor;
 		}
 
 		await syncStatusBar();
