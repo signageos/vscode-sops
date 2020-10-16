@@ -4,7 +4,7 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.3.0]
 ### Added
 - Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)
 - Button in bottom status bar for easier toggling between encrypted & decrypted files
