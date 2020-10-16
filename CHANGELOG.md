@@ -4,6 +4,14 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Added
+- Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)
+- Button in bottom status bar for easier toggling between encrypted & decrypted files
+
+### Fixed
+- Occasionally not decrypting sops file when it was already encrypted early before
+
 ## [0.2.0]
 ### Added
 - Support for `ini` files

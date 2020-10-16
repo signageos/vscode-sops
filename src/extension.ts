@@ -8,12 +8,21 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as Debug from 'debug';
 import { TextEncoder, TextDecoder } from 'text-encoding';
-const debug = Debug('@signageos/vscode-sops');
+
+const DEBUG_NAMESPACE = '@signageos/vscode-sops';
+function enableDebug() {
+	const outputChannel = vscode.window.createOutputChannel(DEBUG_NAMESPACE);
+	(Debug as any).log = (...args: any[]) => outputChannel.appendLine(args.join(', '));
+	Debug.enable(DEBUG_NAMESPACE);
+};
+//enableDebug(); // Uncomment this line to show debug logs in output
+
+const debug = Debug(DEBUG_NAMESPACE);
 
 const convertUtf8ToUint8Array = (input: string) => new TextEncoder("utf-8").encode(input);
-const contertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
+const convertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
 
-const FAKE_DECRYPTED_ADITOR_NODE = `#!/usr/bin/env node
+const FAKE_DECRYPTED_EDITOR_NODE = `#!/usr/bin/env node
 const fs = require('fs');
 fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYPTED_FILE_PATH));
 `;
@@ -35,6 +44,10 @@ const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
+enum Command {
+	TOGGLE_ORIGINAL_FILE = 'sops.toggle_original_file',
+}
+
 const SOPS_CONFIG_FILENAME = '.sops.yaml';
 
 const DECRYPTED_PREFIX = '.decrypted~';
@@ -50,16 +63,25 @@ let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
 };
 
+function getToggleBarText(toggleToEncDec: 'encrypted' | 'decrypted' | 'enc/dec' = 'enc/dec') {
+	return `SOPS: toggle ${toggleToEncDec} file`;
+}
+
+const toggleStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
+toggleStatusBarItem.text = getToggleBarText();
+toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
+
 // TODO dotenv
 type IFileFormat = 'yaml' | 'json' | 'ini';
 
-function isIFileFormat(arg: string): arg is IFileFormat {
-	return ['yaml', 'json', 'ini'].includes(arg);
+function isIFileFormat(languageId: string): languageId is IFileFormat {
+	return ['yaml', 'json', 'ini'].includes(languageId);
 }
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
 	debug('handleFile', document, fileFormat);
-	if (!path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
+	if (!isDecryptedFile(document.uri)) {
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
 		const fileData = parser(fileContent);
@@ -82,13 +104,9 @@ async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFo
 	const progressOptions: vscode.ProgressOptions = {
 		location: vscode.ProgressLocation.Notification,
 	};
-	if (path.basename(decryptedUri.path).startsWith(DECRYPTED_PREFIX)) {
-		const encryptedFileName = path.join(
-			path.dirname(decryptedUri.path),
-			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length)
-		);
-		debug('Encrypted filename', encryptedFileName);
-		const encryptedUri = decryptedUri.with({ path: encryptedFileName });
+	const encryptedUri = getEncryptedFileUri(decryptedUri);
+	if (encryptedUri) {
+		debug('Encrypted filename', encryptedUri.path);
 		debug('Encrypted uri', encryptedUri);
 		await vscode.window.withProgress(progressOptions, async (progress) => {
 			progress.report({ message: `Encrypting "${encryptedUri.path}" SOPS file` });
@@ -144,9 +162,7 @@ function getParser(fileFormat: IFileFormat) {
 
 async function ensureOpenDecryptedFile(encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
 	debug('Opening', encryptedUri.path);
-	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
-	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
-	const decryptedUri = encryptedUri.with({ path: decryptedFilePath });
+	const decryptedUri = getDecryptedFileUri(encryptedUri);
 
 	if (!await fileExists(decryptedUri)) {
 		debug('Not decrypted', decryptedUri.path);
@@ -184,9 +200,9 @@ async function openFile(uri: vscode.Uri) {
 	return await vscode.window.showTextDocument(uri);
 }
 
-async function closeFile(uri: vscode.Uri) {
-	const visibleEditor = vscode.window.visibleTextEditors.find((editor) => editor.document.uri.path === uri.path);
-	if (!visibleEditor) {
+async function closeAndDeleteFile(uri: vscode.Uri) {
+	// TODO close file first
+	if (await fileExists(uri)) {
 		await vscode.workspace.fs.delete(uri);
 	}
 }
@@ -209,7 +225,7 @@ async function getChecksum(content: string) {
 
 async function getFileContent(uri: vscode.Uri) {
 	const fileContent = await vscode.workspace.fs.readFile(uri);
-	return contertUint8ArrayToUtf8(fileContent);
+	return convertUint8ArrayToUtf8(fileContent);
 }
 
 async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat) {
@@ -262,7 +278,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 	const tmpEncryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	const tmpFakeDecryptedEditorPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	try {
-		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_ADITOR_NODE, { mode: 0o755 }); // TODO add Win .cmd script detection
+		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_EDITOR_NODE, { mode: 0o755 }); // TODO add Win .cmd script detection
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
@@ -466,10 +482,89 @@ async function getRunControl(): Promise<IRunControl> {
 	return {};
 }
 
+function isDecryptedFile(uri: vscode.Uri) {
+	return path.basename(uri.path).startsWith(DECRYPTED_PREFIX);
+}
+
+function getDecryptedFileUri(encryptedUri: vscode.Uri): vscode.Uri {
+	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
+	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
+	const decryptedFileUri = encryptedUri.with({ path: decryptedFilePath });
+	return decryptedFileUri;
+}
+
+function getEncryptedFileUri(decryptedUri: vscode.Uri): vscode.Uri | null {
+	return isDecryptedFile(decryptedUri) ? decryptedUri.with({
+		path: path.join(
+			path.dirname(decryptedUri.path),
+			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length),
+		),
+	}) : null;
+}
+
+async function isSecretPairMember(uri: vscode.Uri) {
+	if (isDecryptedFile(uri) || await fileExists(getDecryptedFileUri(uri))) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
 	let lastActiveEditor: vscode.TextEditor | undefined;
+	const decryptedFileUris: vscode.Uri[] = [];
+
+	async function syncStatusBar() {
+		debug('syncing status bar');
+
+		if (lastActiveEditor) {
+			if (isDecryptedFile(lastActiveEditor.document.uri)) {
+				toggleStatusBarItem.text = getToggleBarText('encrypted');
+				debug('showing status bar for decrypted file', lastActiveEditor.document.uri.path);
+				toggleStatusBarItem.show();
+				return;
+			}
+			const decryptedFileUri = getDecryptedFileUri(lastActiveEditor.document.uri);
+			if (decryptedFileUri && await fileExists(decryptedFileUri)) {
+				toggleStatusBarItem.text = getToggleBarText('decrypted');
+				debug('showing status bar for encrypted file', lastActiveEditor.document.uri.path);
+				toggleStatusBarItem.show();
+				return;
+			}
+		}
+		debug('hiding status bar');
+		toggleStatusBarItem.hide();
+	}
+
+	vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, async () => {
+		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
+		if (!isEnabled()) {
+			debug('Extension is disabled by configuration');
+			return;
+		}
+
+		if (lastActiveEditor) {
+			let fileUriToOpen: vscode.Uri | undefined;
+
+			const encryptedFileUri = getEncryptedFileUri(lastActiveEditor.document.uri);
+			if (encryptedFileUri && await fileExists(encryptedFileUri)) {
+				debug('command encrypted file exists', encryptedFileUri.path);
+				fileUriToOpen = encryptedFileUri;
+			}
+
+			const decryptedFileUri = getDecryptedFileUri(lastActiveEditor.document.uri);
+			if (decryptedFileUri && await fileExists(decryptedFileUri)) {
+				debug('command decrypted file exists', decryptedFileUri.path);
+				fileUriToOpen = decryptedFileUri;
+			}
+
+			if (fileUriToOpen) {
+				await openFile(fileUriToOpen);
+			}
+		}
+	});
 
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
@@ -477,35 +572,38 @@ export function activate(context: vscode.ExtensionContext) {
 			debug('Extension is disabled by configuration');
 			return;
 		}
-		if (lastActiveEditor) {
-			const document = lastActiveEditor.document;
-			try {
-				if (path.basename(document.uri.path).startsWith(DECRYPTED_PREFIX)) {
-					if (isIFileFormat(document.languageId)) {
-						await closeFile(document.uri);
+
+		if (editor) {
+			const document = editor.document;
+			if (isDecryptedFile(document.uri)) {
+				decryptedFileUris.push(document.uri);
+			}
+
+			if (!await isSecretPairMember(document.uri)) {
+				for (const decryptedFileUri of decryptedFileUris) {
+					try {
+						await closeAndDeleteFile(decryptedFileUri);
+					} catch (error) {
+						debug('Cannot close file', document.fileName, error);
+						vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
 					}
 				}
+				decryptedFileUris.splice(0, decryptedFileUris.length);
+			}
+
+			try {
+				if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
+					await handleFile(document, document.languageId);
+				}
 			} catch (error) {
-				debug('Cannot close file', document.fileName, error);
-				vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
+				debug('Cannot parse file', document.fileName, error);
+				vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
 			}
+
+			lastActiveEditor = editor;
 		}
-		lastActiveEditor = editor;
-	});
-	vscode.workspace.onDidOpenTextDocument(async (document) => {
-		debug('open document', document.fileName);
-		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
-			return;
-		}
-		try {
-			if (isIFileFormat(document.languageId)) {
-				await handleFile(document, document.languageId);
-			}
-		} catch (error) {
-			debug('Cannot parse file', document.fileName, error);
-			vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
-		}
+
+		await syncStatusBar();
 	});
 
 	vscode.workspace.onDidSaveTextDocument(async (document) => {
