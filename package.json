@@ -1,6 +1,6 @@
 {
-	"name": "signageos-vscode-sops",
-	"displayName": "@signageos/vscode-sops",
+	"name": "signageos-vscode-sops-beta",
+	"displayName": "@signageos/vscode-sops-beta",
 	"description": "",
 	"publisher": "signageos",
 	"version": "0.2.0",
