@@ -11,7 +11,7 @@ import { TextEncoder, TextDecoder } from 'text-encoding';
 const debug = Debug('@signageos/vscode-sops');
 
 const convertUtf8ToUint8Array = (input: string) => new TextEncoder("utf-8").encode(input);
-const contertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
+const convertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
 
 const FAKE_DECRYPTED_ADITOR_NODE = `#!/usr/bin/env node
 const fs = require('fs');
@@ -216,7 +216,7 @@ async function getChecksum(content: string) {
 
 async function getFileContent(uri: vscode.Uri) {
 	const fileContent = await vscode.workspace.fs.readFile(uri);
-	return contertUint8ArrayToUtf8(fileContent);
+	return convertUint8ArrayToUtf8(fileContent);
 }
 
 async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat) {
