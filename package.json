@@ -23,6 +23,14 @@
 			{
 				"command": "sops.info",
 				"title": "SOPS info"
+			},
+			{
+				"command": "sops.enable_beta",
+				"title": "SOPS enable BETA"
+			},
+			{
+				"command": "sops.disable_beta",
+				"title": "SOPS rollback STABLE version (disable BETA)"
 			}
 		],
 		"configuration": {

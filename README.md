@@ -44,6 +44,8 @@ The beta extension package is installed automatically and is disabled by default
 
 If you'd like to try new features, just enable configuration `"sops.beta": true` in global (or workspace) config file and changes are applied immediately.
 
+You can switch beta configuration globally easily using commands `sops.enable_beta`/`sops.disable_beta`.
+
 I recommend to have enabled beta release to test everything as soon as possible. If something went wrong in beta release, just easily rollback to `"sops.beta" false` and report an issue here: https://github.com/signageos/vscode-sops/issues
 
 > The reason is that vscode doesn't support beta releases built-in. See and vote for https://github.com/microsoft/vscode/issues/15756

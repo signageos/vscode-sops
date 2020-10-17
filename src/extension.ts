@@ -48,6 +48,8 @@ const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 enum Command {
 	INFO_COMMAND = 'sops.info',
 	TOGGLE_ORIGINAL_FILE = 'sops.toggle_original_file',
+	ENABLE_BETA = 'sops.enable_beta',
+	DISABLE_BETA = 'sops.disable_beta',
 }
 
 const SOPS_CONFIG_FILENAME = '.sops.yaml';
@@ -654,6 +656,10 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('SOPS!');
 	};
 
+	const createSetBeta = (enableBeta: boolean) => () => {
+		vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).update(ConfigName.beta, enableBeta, vscode.ConfigurationTarget.Global);
+	};
+
 	const activeDisposables: vscode.Disposable[] = [];
 
 	async function updateSubscriptions() {
@@ -667,6 +673,8 @@ export function activate(context: vscode.ExtensionContext) {
 					vscode.window.onDidChangeActiveTextEditor(onActiveEditorChanged),
 					vscode.workspace.onDidSaveTextDocument(onTextDocumentSaved),
 					vscode.commands.registerCommand(Command.INFO_COMMAND, printInfo),
+					vscode.commands.registerCommand(Command.ENABLE_BETA, createSetBeta(true)),
+					vscode.commands.registerCommand(Command.DISABLE_BETA, createSetBeta(false)),
 				);
 				context.subscriptions.push(...activeDisposables);
 			}
