@@ -57,8 +57,12 @@ const getSopsBinPath = () => {
 	return sopsPath ?? 'sops';
 };
 const isEnabled = () => {
-	const enabled: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled);
-	return enabled ?? true;
+	const enabled: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled) ?? true;
+	if (!enabled) {
+		debug('Extension is disabled by configuration');
+		return false;
+	}
+	return true;
 };
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
@@ -542,7 +546,6 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, async () => {
 		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
 		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
 			return;
 		}
 
@@ -570,7 +573,6 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		debug('change active editor', editor?.document.fileName);
 		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
 			return;
 		}
 
@@ -610,7 +612,6 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.workspace.onDidSaveTextDocument(async (document) => {
 		debug('save document', document.fileName);
 		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
 			return;
 		}
 		try {
