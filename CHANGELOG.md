@@ -8,6 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 - Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)
 - Button in bottom status bar for easier toggling between encrypted & decrypted files
+- Easy switching between stable release and beta release using new configuration `sops.beta`.
 
 ### Fixed
 - Occasionally not decrypting sops file when it was already encrypted early before

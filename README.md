@@ -23,6 +23,7 @@ VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) support
 
 ## Extension Settings
 * `sops.enable`: enable/disable this extension (default: true)
+* `sops.beta`: enable/disable beta release without reloading VSCode or enabling/disabling extensions (default: false)
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 * `sops.configPath`: Path (absolute or relative) to the configuration for this extension (empty: defaults to `.sopsrc` in root of project) See [Config file](#config-file) section.
 * `sops.defaults.awsProfile`: Default AWS profile name which will be used for sops command `--aws-profile` (empty: defaults to environment variable `$AWS_PROFILE`)
@@ -38,6 +39,13 @@ gcpCredentialsPath: /home/user/Downloads/my-key.json
 
 ## Beta releases
 The new features are published immediately into different extension package https://marketplace.visualstudio.com/items?itemName=signageos.signageos-vscode-sops-beta
+
+The beta extension package is installed automatically and is disabled by default.
+
+If you'd like to try new features, just enable configuration `"sops.beta": true` in global (or workspace) config file and changes are applied immediately.
+
+I recommend to have enabled beta release to test everything as soon as possible. If something went wrong in beta release, just easily rollback to `"sops.beta" false` and report an issue here: https://github.com/signageos/vscode-sops/issues
+
 > The reason is that vscode doesn't support beta releases built-in. See and vote for https://github.com/microsoft/vscode/issues/15756
 
 

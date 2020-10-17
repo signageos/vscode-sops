@@ -34,6 +34,12 @@
 					"default": true,
 					"description": "enable/disable this extension (default: true)"
 				},
+				"sops.beta": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "enable/disable beta release to be activated instead of latest stable release in real time (default: false)"
+				},
 				"sops.creationEnabled": {
 					"type": "boolean",
 					"scope": "resource",

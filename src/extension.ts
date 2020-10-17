@@ -30,6 +30,7 @@ fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYP
 const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
+	beta = 'beta',
 	creationEnabled = 'creationEnabled',
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaults.awsProfile',
@@ -56,13 +57,31 @@ const getSopsBinPath = () => {
 	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
 	return sopsPath ?? 'sops';
 };
-const isEnabled = () => {
+
+// TODO wait til vscode provide proper way to get current extension name
+const getCurrentExtensionName = (context: vscode.ExtensionContext): string => (context.globalState as any)._id;
+
+const isCurrentlyBetaInstance = (context: vscode.ExtensionContext) => {
+	const extensionName = getCurrentExtensionName(context);
+	debug('extension name', extensionName);
+	return extensionName.endsWith('-beta');
+};
+
+const isEnabled = (context: vscode.ExtensionContext) => {
 	const enabled: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled) ?? true;
 	if (!enabled) {
 		debug('Extension is disabled by configuration');
 		return false;
 	}
-	return true;
+
+	// toggling between stable & beta versions of extension
+	const beta: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.beta) ?? false;
+
+	if (beta) {
+		return isCurrentlyBetaInstance(context);
+	} else {
+		return !isCurrentlyBetaInstance(context);
+	}
 };
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
@@ -549,7 +568,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const toggleOriginalFile = async () => {
 		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
-		if (!isEnabled()) {
+		if (!isEnabled(context)) {
 			return;
 		}
 
@@ -576,7 +595,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const onActiveEditorChanged = async (editor: vscode.TextEditor | undefined) => {
 		debug('change active editor', editor?.document.fileName);
-		if (!isEnabled()) {
+		if (!isEnabled(context)) {
 			return;
 		}
 
@@ -615,7 +634,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const onTextDocumentSaved = async (document: vscode.TextDocument) => {
 		debug('save document', document.fileName);
-		if (!isEnabled()) {
+		if (!isEnabled(context)) {
 			return;
 		}
 		try {
@@ -629,7 +648,7 @@ export function activate(context: vscode.ExtensionContext) {
 	};
 
 	const printInfo = () => {
-		if (!isEnabled()) {
+		if (!isEnabled(context)) {
 			return;
 		}
 		vscode.window.showInformationMessage('SOPS!');
@@ -638,7 +657,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const activeDisposables: vscode.Disposable[] = [];
 
 	async function updateSubscriptions() {
-		if (isEnabled()) {
+		if (isEnabled(context)) {
 			if (activeDisposables.length === 0) {
 				await wait(20); // wait til opposite extension disposed commands
 				debug('enabling subscriptions');
