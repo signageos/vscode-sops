@@ -515,6 +515,10 @@ async function isSecretPairMember(uri: vscode.Uri) {
 	}
 }
 
+function wait(timeoutMs: number) {
+	return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
@@ -543,7 +547,7 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleStatusBarItem.hide();
 	}
 
-	vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, async () => {
+	const toggleOriginalFile = async () => {
 		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
 		if (!isEnabled()) {
 			return;
@@ -568,9 +572,9 @@ export function activate(context: vscode.ExtensionContext) {
 				await openFile(fileUriToOpen);
 			}
 		}
-	});
+	};
 
-	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+	const onActiveEditorChanged = async (editor: vscode.TextEditor | undefined) => {
 		debug('change active editor', editor?.document.fileName);
 		if (!isEnabled()) {
 			return;
@@ -607,9 +611,9 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		await syncStatusBar();
-	});
+	};
 
-	vscode.workspace.onDidSaveTextDocument(async (document) => {
+	const onTextDocumentSaved = async (document: vscode.TextDocument) => {
 		debug('save document', document.fileName);
 		if (!isEnabled()) {
 			return;
@@ -622,16 +626,51 @@ export function activate(context: vscode.ExtensionContext) {
 			debug('Cannot encrypt file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error.message}`);
 		}
-	});
+	};
 
-	let disposable = vscode.commands.registerCommand(Command.INFO_COMMAND, () => {
+	const printInfo = () => {
 		if (!isEnabled()) {
 			return;
 		}
 		vscode.window.showInformationMessage('SOPS!');
-	});
+	};
 
-	context.subscriptions.push(disposable);
+	const activeDisposables: vscode.Disposable[] = [];
+
+	async function updateSubscriptions() {
+		if (isEnabled()) {
+			if (activeDisposables.length === 0) {
+				await wait(20); // wait til opposite extension disposed commands
+				debug('enabling subscriptions');
+
+				activeDisposables.push(
+					vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, toggleOriginalFile),
+					vscode.window.onDidChangeActiveTextEditor(onActiveEditorChanged),
+					vscode.workspace.onDidSaveTextDocument(onTextDocumentSaved),
+					vscode.commands.registerCommand(Command.INFO_COMMAND, printInfo),
+				);
+				context.subscriptions.push(...activeDisposables);
+			}
+		} else {
+			debug('disabling subscriptions');
+			let activeDisposable: vscode.Disposable | undefined;
+			while (activeDisposable = activeDisposables.pop()) {
+				activeDisposable.dispose();
+				context.subscriptions.splice(context.subscriptions.indexOf(activeDisposable), 1);
+			}
+		}
+	}
+
+	const configurationChangesDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+		debug('configuration changed');
+		if (event.affectsConfiguration(CONFIG_BASE_SECTION)) {
+			debug('updating subscriptions');
+			updateSubscriptions();
+		}
+	});
+	context.subscriptions.push(configurationChangesDisposable);
+
+	updateSubscriptions();
 }
 
 export function deactivate() {}
