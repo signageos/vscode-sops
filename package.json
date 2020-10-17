@@ -21,8 +21,8 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "extension.sops",
-				"title": "SOPS"
+				"command": "sops.info",
+				"title": "SOPS info"
 			}
 		],
 		"configuration": {

@@ -45,6 +45,7 @@ const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
 enum Command {
+	INFO_COMMAND = 'sops.info',
 	TOGGLE_ORIGINAL_FILE = 'sops.toggle_original_file',
 }
 
@@ -622,7 +623,10 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	let disposable = vscode.commands.registerCommand('extension.sops', () => {
+	let disposable = vscode.commands.registerCommand(Command.INFO_COMMAND, () => {
+		if (!isEnabled()) {
+			return;
+		}
 		vscode.window.showInformationMessage('SOPS!');
 	});
 
