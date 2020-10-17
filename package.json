@@ -65,6 +65,9 @@
 			}
 		}
 	},
+	"extensionDependencies": [
+		"signageos.signageos-vscode-sops"
+	],
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"vscode:package": "vsce package",
