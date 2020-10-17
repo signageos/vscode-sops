@@ -9,7 +9,7 @@
 		"url": "https://github.com/signageos/vscode-sops"
 	},
 	"engines": {
-		"vscode": "^1.42.0"
+		"vscode": "^1.50.0"
 	},
 	"categories": [
 		"Other"
@@ -83,7 +83,7 @@
 		"@types/mocha": "^7.0.1",
 		"@types/node": "^12.11.7",
 		"@types/text-encoding": "0.0.35",
-		"@types/vscode": "^1.42.0",
+		"@types/vscode": "1.50.0",
 		"@types/yaml": "1.2.0",
 		"@typescript-eslint/eslint-plugin": "^2.18.0",
 		"@typescript-eslint/parser": "^2.18.0",
