@@ -61,7 +61,7 @@ const getSopsBinPath = () => {
 };
 
 // TODO wait til vscode provide proper way to get current extension name
-const getCurrentExtensionName = (context: vscode.ExtensionContext): string => (context.globalState as any)._id;
+const getCurrentExtensionName = (context: vscode.ExtensionContext): string => (context.globalState as any)._id ?? 'signageos.signageos-vscode-sops';
 
 const isCurrentlyBetaInstance = (context: vscode.ExtensionContext) => {
 	const extensionName = getCurrentExtensionName(context);
