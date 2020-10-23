@@ -22,9 +22,8 @@ const debug = Debug(DEBUG_NAMESPACE);
 const convertUtf8ToUint8Array = (input: string) => new TextEncoder("utf-8").encode(input);
 const convertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").decode(input);
 
-const FAKE_DECRYPTED_EDITOR_NODE = `#!/usr/bin/env node
-const fs = require('fs');
-fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYPTED_FILE_PATH));
+const FAKE_DECRYPTED_EDITOR_SHELL = `#!/bin/sh
+cat $VSCODE_SOPS_DECRYPTED_FILE_PATH > $1
 `;
 
 const CONFIG_BASE_SECTION = 'sops';
@@ -304,7 +303,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 	const tmpEncryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	const tmpFakeDecryptedEditorPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	try {
-		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_EDITOR_NODE, { mode: 0o755 }); // TODO add Win .cmd script detection
+		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_EDITOR_SHELL, { mode: 0o755 }); // TODO add Win .cmd script detection
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);

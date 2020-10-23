@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - Occasionally not decrypting sops file when it was already encrypted early before
 - Clean event listeners on deactivating extension
+- Remove requirement on globally installed node.js
 
 ## [0.2.0]
 ### Added
