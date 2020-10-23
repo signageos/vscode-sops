@@ -30,6 +30,7 @@ fs.writeFileSync(process.argv[2], fs.readFileSync(process.env.VSCODE_SOPS_DECRYP
 const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
 	enabled = 'enabled',
+	beta = 'beta',
 	creationEnabled = 'creationEnabled',
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaults.awsProfile',
@@ -45,7 +46,10 @@ const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
 enum Command {
+	INFO_COMMAND = 'sops.info',
 	TOGGLE_ORIGINAL_FILE = 'sops.toggle_original_file',
+	ENABLE_BETA = 'sops.enable_beta',
+	DISABLE_BETA = 'sops.disable_beta',
 }
 
 const SOPS_CONFIG_FILENAME = '.sops.yaml';
@@ -55,9 +59,31 @@ const getSopsBinPath = () => {
 	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
 	return sopsPath ?? 'sops';
 };
-const isEnabled = () => {
-	const enabled: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled);
-	return enabled ?? true;
+
+// TODO wait til vscode provide proper way to get current extension name
+const getCurrentExtensionName = (context: vscode.ExtensionContext): string => (context.globalState as any)._id ?? 'signageos.signageos-vscode-sops';
+
+const isCurrentlyBetaInstance = (context: vscode.ExtensionContext) => {
+	const extensionName = getCurrentExtensionName(context);
+	debug('extension name', extensionName);
+	return extensionName.endsWith('-beta');
+};
+
+const isEnabled = (context: vscode.ExtensionContext) => {
+	const enabled: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.enabled) ?? true;
+	if (!enabled) {
+		debug('Extension is disabled by configuration');
+		return false;
+	}
+
+	// toggling between stable & beta versions of extension
+	const beta: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.beta) ?? false;
+
+	if (beta) {
+		return isCurrentlyBetaInstance(context);
+	} else {
+		return !isCurrentlyBetaInstance(context);
+	}
 };
 let spawnOptions: child_process.SpawnSyncOptions = {
 	cwd: process.env.HOME,
@@ -510,6 +536,10 @@ async function isSecretPairMember(uri: vscode.Uri) {
 	}
 }
 
+function wait(timeoutMs: number) {
+	return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	debug('SOPS activated');
 
@@ -538,10 +568,9 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleStatusBarItem.hide();
 	}
 
-	vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, async () => {
+	const toggleOriginalFile = async () => {
 		debug(`command ${Command.TOGGLE_ORIGINAL_FILE} executed`);
-		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
+		if (!isEnabled(context)) {
 			return;
 		}
 
@@ -564,12 +593,11 @@ export function activate(context: vscode.ExtensionContext) {
 				await openFile(fileUriToOpen);
 			}
 		}
-	});
+	};
 
-	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+	const onActiveEditorChanged = async (editor: vscode.TextEditor | undefined) => {
 		debug('change active editor', editor?.document.fileName);
-		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
+		if (!isEnabled(context)) {
 			return;
 		}
 
@@ -604,12 +632,11 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		await syncStatusBar();
-	});
+	};
 
-	vscode.workspace.onDidSaveTextDocument(async (document) => {
+	const onTextDocumentSaved = async (document: vscode.TextDocument) => {
 		debug('save document', document.fileName);
-		if (!isEnabled()) {
-			debug('Extension is disabled by configuration');
+		if (!isEnabled(context)) {
 			return;
 		}
 		try {
@@ -620,13 +647,57 @@ export function activate(context: vscode.ExtensionContext) {
 			debug('Cannot encrypt file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error.message}`);
 		}
-	});
+	};
 
-	let disposable = vscode.commands.registerCommand('extension.sops', () => {
+	const printInfo = () => {
+		if (!isEnabled(context)) {
+			return;
+		}
 		vscode.window.showInformationMessage('SOPS!');
-	});
+	};
 
-	context.subscriptions.push(disposable);
+	const createSetBeta = (enableBeta: boolean) => () => {
+		vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).update(ConfigName.beta, enableBeta, vscode.ConfigurationTarget.Global);
+	};
+
+	const activeDisposables: vscode.Disposable[] = [];
+
+	async function updateSubscriptions() {
+		if (isEnabled(context)) {
+			if (activeDisposables.length === 0) {
+				await wait(20); // wait til opposite extension disposed commands
+				debug('enabling subscriptions');
+
+				activeDisposables.push(
+					vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, toggleOriginalFile),
+					vscode.window.onDidChangeActiveTextEditor(onActiveEditorChanged),
+					vscode.workspace.onDidSaveTextDocument(onTextDocumentSaved),
+					vscode.commands.registerCommand(Command.INFO_COMMAND, printInfo),
+					vscode.commands.registerCommand(Command.ENABLE_BETA, createSetBeta(true)),
+					vscode.commands.registerCommand(Command.DISABLE_BETA, createSetBeta(false)),
+				);
+				context.subscriptions.push(...activeDisposables);
+			}
+		} else {
+			debug('disabling subscriptions');
+			let activeDisposable: vscode.Disposable | undefined;
+			while (activeDisposable = activeDisposables.pop()) {
+				activeDisposable.dispose();
+				context.subscriptions.splice(context.subscriptions.indexOf(activeDisposable), 1);
+			}
+		}
+	}
+
+	const configurationChangesDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+		debug('configuration changed');
+		if (event.affectsConfiguration(CONFIG_BASE_SECTION)) {
+			debug('updating subscriptions');
+			updateSubscriptions();
+		}
+	});
+	context.subscriptions.push(configurationChangesDisposable);
+
+	updateSubscriptions();
 }
 
 export function deactivate() {}

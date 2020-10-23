@@ -9,7 +9,7 @@
 		"url": "https://github.com/signageos/vscode-sops"
 	},
 	"engines": {
-		"vscode": "^1.42.0"
+		"vscode": "^1.50.0"
 	},
 	"categories": [
 		"Other"
@@ -21,8 +21,16 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "extension.sops",
-				"title": "SOPS"
+				"command": "sops.info",
+				"title": "SOPS info"
+			},
+			{
+				"command": "sops.enable_beta",
+				"title": "SOPS enable BETA"
+			},
+			{
+				"command": "sops.disable_beta",
+				"title": "SOPS rollback STABLE version (disable BETA)"
 			}
 		],
 		"configuration": {
@@ -33,6 +41,12 @@
 					"scope": "resource",
 					"default": true,
 					"description": "enable/disable this extension (default: true)"
+				},
+				"sops.beta": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "enable/disable beta release to be activated instead of latest stable release in real time (default: false)"
 				},
 				"sops.creationEnabled": {
 					"type": "boolean",
@@ -83,7 +97,7 @@
 		"@types/mocha": "^7.0.1",
 		"@types/node": "^12.11.7",
 		"@types/text-encoding": "0.0.35",
-		"@types/vscode": "^1.42.0",
+		"@types/vscode": "1.50.0",
 		"@types/yaml": "1.2.0",
 		"@typescript-eslint/eslint-plugin": "^2.18.0",
 		"@typescript-eslint/parser": "^2.18.0",
