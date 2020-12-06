@@ -1,0 +1,41 @@
+abc: ENC[AES256_GCM,data:ee8m,iv:O0T6M6wcFgW7RzGeyw39kGCLN75nr3ZO9OhR4XA2ir0=,tag:zK9wfav9HGjZatuavC9RYQ==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    lastmodified: '2020-10-16T20:37:26Z'
+    mac: ENC[AES256_GCM,data:iAVbGKnEytdGx9jkHkAiZp5g8L8GB9vCY9kygZD9+23VhYlUvfVLDFHYbqYh36q2jnEH2uEGUMG0HaeKR+cIaEM3O4/0Z7NZslYnzQS/YsIGRZbE2y8CfXeKQWfFiVlxvyyI2uAYrkF/7uU/cD/CkIjGM440tsHC/Xdu2lj8Q90=,iv:kSHZKH5wk0lg+4pIIrZ8cvvBSaXA7WJgpsbeIX5Yb+I=,tag:Yw93Iu6+e2iPHImVL6XxmQ==,type:str]
+    pgp:
+    -   created_at: '2020-10-15T18:21:34Z'
+        enc: |
+            -----BEGIN PGP MESSAGE-----
+
+            hQEMAyxP1slMQ4o1AQgAp4JaP5UZa3xXwzepURVOTRhvbJiZu+77ou7W3+//gEnx
+            uxS565aOn5aZTxC/Z1Rz0hZXgpTkIbomTPZ2zddwYsVDihco2qqKDUykWYXkAchy
+            BSKitNgypz43DzKrwJ7bXggvYtCIYUgBHkQ2oUviQQxzp+4MxvWlgeeC3lbmX/vq
+            WLLlhYm2eCRwFS89IHkdZA87kiDuvpmyw4NRY8MgABF8AMop5UXQec21zFG+JKXl
+            tgeMovhexHmH817SR9zh9WA5v68AxI+jy7Du3kL20a2VnrWC7ftqnpwZGkpJZzsJ
+            J6fjapU5uvfAOyGTshUKmDp6JjKJBsUDcgkH+HQBGdJeAYdrgXArhr7ymyNsJBqR
+            m2Fgqba48Yu9uapQtH7pJqxhr65pRorhe9FCV6FYqO1HhHNg7y19JbXck7tI/9sZ
+            X2vI5uKOaqmAl/3KnM6sn77W7IXd7RzgYoEXdp67aA==
+            =USpk
+            -----END PGP MESSAGE-----
+        fp: 9C12EE87E3224E13E2F4E47C9822F10250D5EFF7
+    -   created_at: '2020-10-15T18:21:34Z'
+        enc: |
+            -----BEGIN PGP MESSAGE-----
+
+            hQEMA5VVENnMubQhAQf/eJlTSW9eOf04DwjCB4ap5jmaSYZmyRvFGISvvghSpFaQ
+            h9jgTKo5qZE7LvE6PKhHH5Ar2pT70bFM0waHPol97ShRwMYq98QXPp4P90EaER58
+            swVOpsk8OhCu2t9kDScHt74WP4y4tbBYq/6uwaJkS4DqNmp8CRjogqje2n54dvxn
+            41HjBxHBTHxA3n2OQJ70sg0dVpbZ6FeZRpCrtWKwx5nqRyeUHVX98dH4D/F+PVel
+            u9DvpUCNxHrH5MA0NTkUSM857EvcPR4crKKZywp8G5ArFRD70k9vg8VR2s6K5Tku
+            VtolPEE1GmDE2QSeTxoaLRdkrMkgS2T8Bv1OVRPYtNJeAU0z+A3AueCucqIBQleg
+            zcS1/GolM5QmisuQhCr8nXj5JbQsrWxOTPSF5yRnKooIgOYfJJcdY05JEa+BWEAA
+            VMuFx+rOQzt24F1QHUkS7Jo72mo5RQjwvMq3Hj1eFg==
+            =88em
+            -----END PGP MESSAGE-----
+        fp: 2956A588E28BC345A26B345AD840C2DA156A9AC4
+    unencrypted_suffix: _unencrypted
+    version: 3.6.1

@@ -1,0 +1,24 @@
+hello: ENC[AES256_GCM,data:CFr45fR2sdnkbcL6usVwjs363T+eogX+GutXgN4hD2WxZJW7thm6SY58aLHvepyE1g==,iv:pSKp/f1pUpRCJphT+Z+FMbP20ZOZK+rFIxpsZd4G2WU=,tag:61Qke1UE4Nogk/Ix3v7XvA==,type:str]
+example_key: ENC[AES256_GCM,data:F/HK54dMd2YFrI584A==,iv:zNdp+Brm4XsmbYzAjrtRV9sqOkn3DsFTmN+JdUm+KrY=,tag:KaRR9PoxCnzvTAHfhBvMOw==,type:str]
+#ENC[AES256_GCM,data:QO7WTKw7uwOB18ujtkV7GA==,iv:UZuwKOLlIUOQ6kP4fAQSgpBxtdrl0owfBt6d0pYzyG0=,tag:TeKsWLQXV7I4YbiSCpjoxw==,type:comment]
+example_array:
+- ENC[AES256_GCM,data:C2atMaXAkx57EUkpoas=,iv:JBUCWT7kc/oFlxzHlah6OXX87ye7X0bUch9c73Z1iQk=,tag:r9Z4ZD7fGBnUUX/YvVZLzg==,type:str]
+- ENC[AES256_GCM,data:sTD7gGWl23QwgNUsaDg=,iv:Ef9OOHTevtSOyUV2bmAp8L58ItouHDCH+pG7mjpOziY=,tag:tiWIFKb/m+sE/J0v8o/pLg==,type:str]
+example_number: ENC[AES256_GCM,data:bYIITrJu0njm,iv:f78AH78HnkWC2jadlUY7yA4jugEeDVS9B3XCW7XXKyM=,tag:Mgiuh03/lR+iYmfEkDjUxw==,type:float]
+example_booleans:
+- ENC[AES256_GCM,data:NzH2sw==,iv:REm1yspMIbKb2ekFE3M3wqTm1rfkXP9V9anyu6Pnedg=,tag:mWd0lHZvGSWZheO0ej+efg==,type:bool]
+- ENC[AES256_GCM,data:bx2WmIg=,iv:hPMjrSvdnubUCWqBAMQJqWIcTJf/KL+5q3q0IQTHmc0=,tag:KZ67Uk+UJauRxXU2HvhlTw==,type:bool]
+sops:
+    kms:
+    -   arn: arn:aws:kms:eu-central-1:172396373649:key/6e173afc-5c3b-45f0-8613-1f2a678a4fb1
+        created_at: '2020-09-26T14:22:05Z'
+        enc: AQICAHggWMLqIokPPl2/Pf3rvOrawDVO0B6FKY0yKMJpRBR+sgF5r9zTKWSx6VdmwzKBxbDMAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMY99oQSkCvQ4DyuinAgEQgDugi8oyWa4qrbLGG6dINO4sVbm+yK5pw99QBjQj0BCr36Q65TMVQ6s2YA2+Rtar6ovmiSnz61uJwTkWsg==
+        aws_profile: ""
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    lastmodified: '2020-09-26T14:22:13Z'
+    mac: ENC[AES256_GCM,data:trIlbPfnxJzl7NuA23v+ZYF3YFwNSGrOHCbnDiaTUhsnOMtMPO6VyFhZ43owwYLLVPkcQJjIQloTHPwqqiDjJP1WvLDkRUXyCSTxxO2XtP1XBoWYiJ2B0Jgp8w8FkbqhJhxafBRxHOVB1yXSBLDZfgyPAxyaOQ74vHSAbt8B2Kg=,iv:cgOZL0d8HimqGL24mJK5bcZUKfv3pYE1AeBfGfzuTBg=,tag:f+FNrLOj5uksr50EbcsOcg==,type:str]
+    pgp: []
+    unencrypted_suffix: _unencrypted
+    version: 3.6.1
