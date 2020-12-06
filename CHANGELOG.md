@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 ### Added
+- Support to parse even multiple yaml declarations in a single YAML file
+
+### Fixed
+- Skip parsing error messages when detecting SOPS kind file
+
+## [0.3.0]
+### Added
 - Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)
 - Button in bottom status bar for easier toggling between encrypted & decrypted files
 - Easy switching between stable release and beta release using new configuration `sops.beta` (or commands `sops.enable_beta`/`sops.disable_beta`).

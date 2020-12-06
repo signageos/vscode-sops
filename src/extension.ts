@@ -109,9 +109,12 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 	if (!isDecryptedFile(document.uri)) {
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
-		const fileData = parser(fileContent);
+		let fileData = parser(fileContent);
 		debug('File content', fileData);
-		if (typeof fileData.sops?.version === 'string') {
+		if (fileData instanceof Array) {
+			fileData = fileData[0];
+		}
+		if (typeof fileData === 'object' && typeof fileData.sops === 'object' && typeof fileData.sops.version === 'string') {
 			const progressOptions: vscode.ProgressOptions = {
 				location: vscode.ProgressLocation.Notification,
 			};
@@ -177,12 +180,30 @@ function isNoMatchingRulesError(error: Error) {
 	return error?.message?.includes('no matching creation rules found');
 }
 
-function getParser(fileFormat: IFileFormat) {
-	switch (fileFormat) {
-		case 'yaml': return YAML.parse;
-		case 'json': return JSON.parse;
-		case 'ini': return INI.parse;
+class ParseError extends Error {
+	constructor(private originalError: Error) {
+		super(originalError.message);
+		this.stack = originalError.stack;
+		Object.setPrototypeOf(this, ParseError.prototype);
 	}
+}
+
+type ParsedObject = string | number | boolean | {
+	[key: string]: ParsedObject;
+}
+
+function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject | ParsedObject[] {
+	return (content: string) => {
+		try {
+			switch (fileFormat) {
+				case 'yaml': return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
+				case 'json': return JSON.parse(content);
+				case 'ini': return INI.parse(content);
+			}
+		} catch (error) {
+			throw new ParseError(error);
+		}
+	};
 }
 
 async function ensureOpenDecryptedFile(encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
@@ -624,7 +645,9 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			} catch (error) {
 				debug('Cannot parse file', document.fileName, error);
-				vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+				if (!(error instanceof ParseError)) {
+					vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+				}
 			}
 
 			lastActiveEditor = editor;
