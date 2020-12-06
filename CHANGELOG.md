@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Added
+- Support to parse even multiple yaml declarations in a single YAML file
+
 ## [0.3.0]
 ### Added
 - Keep decrypted file on FS when showing original encrypted file (allow fast toggling files)

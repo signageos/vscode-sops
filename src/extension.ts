@@ -109,9 +109,12 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 	if (!isDecryptedFile(document.uri)) {
 		const fileContent = await getFileContent(document.uri);
 		const parser = getParser(fileFormat);
-		const fileData = parser(fileContent);
+		let fileData = parser(fileContent);
 		debug('File content', fileData);
-		if (typeof fileData.sops?.version === 'string') {
+		if (fileData instanceof Array) {
+			fileData = fileData[0];
+		}
+		if (typeof fileData === 'object' && typeof fileData.sops === 'object' && typeof fileData.sops.version === 'string') {
 			const progressOptions: vscode.ProgressOptions = {
 				location: vscode.ProgressLocation.Notification,
 			};
@@ -177,9 +180,15 @@ function isNoMatchingRulesError(error: Error) {
 	return error?.message?.includes('no matching creation rules found');
 }
 
-function getParser(fileFormat: IFileFormat) {
+type ParsedObject = string | number | boolean | {
+	[key: string]: ParsedObject;
+}
+
+function getParser(fileFormat: IFileFormat): (enoded: string) => ParsedObject | ParsedObject[] {
 	switch (fileFormat) {
-		case 'yaml': return YAML.parse;
+		case 'yaml': return (content: string) => {
+			return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
+		}
 		case 'json': return JSON.parse;
 		case 'ini': return INI.parse;
 	}
