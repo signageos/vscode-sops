@@ -180,18 +180,30 @@ function isNoMatchingRulesError(error: Error) {
 	return error?.message?.includes('no matching creation rules found');
 }
 
+class ParseError extends Error {
+	constructor(private originalError: Error) {
+		super(originalError.message);
+		this.stack = originalError.stack;
+		Object.setPrototypeOf(this, ParseError.prototype);
+	}
+}
+
 type ParsedObject = string | number | boolean | {
 	[key: string]: ParsedObject;
 }
 
-function getParser(fileFormat: IFileFormat): (enoded: string) => ParsedObject | ParsedObject[] {
-	switch (fileFormat) {
-		case 'yaml': return (content: string) => {
-			return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
+function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject | ParsedObject[] {
+	return (content: string) => {
+		try {
+			switch (fileFormat) {
+				case 'yaml': return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
+				case 'json': return JSON.parse(content);
+				case 'ini': return INI.parse(content);
+			}
+		} catch (error) {
+			throw new ParseError(error);
 		}
-		case 'json': return JSON.parse;
-		case 'ini': return INI.parse;
-	}
+	};
 }
 
 async function ensureOpenDecryptedFile(encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
@@ -633,7 +645,9 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			} catch (error) {
 				debug('Cannot parse file', document.fileName, error);
-				vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+				if (!(error instanceof ParseError)) {
+					vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+				}
 			}
 
 			lastActiveEditor = editor;
