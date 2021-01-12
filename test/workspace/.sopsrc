@@ -1,0 +1,2 @@
+#awsProfile: test
+gcpCredentialsPath: google-credentials-test.json

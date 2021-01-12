@@ -1,0 +1,9 @@
+{
+	//"sops.enabled": false,
+	//"sops.beta": true,
+	//"sops.binPath": "/usr/local/bin/sops",
+	//"sops.defaults.awsProfile": "test",
+	//"sops.defaults.gcpCredentialsPath": "google-credentials-test.json",
+	//"sops.configPath": "/home/misak113/dev/signageos/sops-test/.sopsrc2",
+	//"sops.creationEnabled": true,
+}
