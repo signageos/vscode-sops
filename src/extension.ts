@@ -108,6 +108,10 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 	debug('handleFile', document, fileFormat);
 	if (!isDecryptedFile(document.uri)) {
 		const fileContent = await getFileContent(document.uri);
+		if (!fileContent) {
+			debug('skip empty files', document.uri);
+			return;
+		}
 		const parser = getParser(fileFormat);
 		let fileData = parser(fileContent);
 		debug('File content', fileData);
