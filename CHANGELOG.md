@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.4.1]
+### Fixed
+- Fix decrypt file paths to support native windows environments
+
 ## [0.4.0]
 ### Added
 - Support to parse even multiple yaml declarations in a single YAML file
