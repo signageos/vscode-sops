@@ -535,7 +535,7 @@ function isDecryptedFile(uri: vscode.Uri) {
 function getDecryptedFileUri(encryptedUri: vscode.Uri): vscode.Uri {
 	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
 	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
-	const decryptedFileUri = encryptedUri.with({ path: decryptedFilePath });
+	const decryptedFileUri = encryptedUri.with({ path: decryptedFilePath.replace(/\\/g, "/") });
 	return decryptedFileUri;
 }
 
