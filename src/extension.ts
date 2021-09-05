@@ -25,6 +25,9 @@ const convertUint8ArrayToUtf8 = (input: Uint8Array) => new TextDecoder("utf-8").
 const FAKE_DECRYPTED_EDITOR_SHELL = `#!/bin/sh
 cat $VSCODE_SOPS_DECRYPTED_FILE_PATH > $1
 `;
+const FAKE_DECRYPTED_EDITOR_CMD = `
+copy %VSCODE_SOPS_DECRYPTED_FILE_PATH% %1
+`;
 
 const CONFIG_BASE_SECTION = 'sops';
 enum ConfigName {
@@ -264,7 +267,9 @@ async function decryptFileToFile(encryptedUri: vscode.Uri, decryptedUri: vscode.
 
 async function encryptFileToFile(decryptedUri: vscode.Uri, encryptedUri: vscode.Uri, fileFormat: IFileFormat) {
 	const encryptedContent = await getEncryptedFileContent(decryptedUri, encryptedUri, fileFormat);
+	debug('Writing encrypted file', encryptedUri, encryptedContent);
 	await vscode.workspace.fs.writeFile(encryptedUri, convertUtf8ToUint8Array(encryptedContent));
+	debug('Wrote encrypted file', encryptedUri, encryptedContent);
 }
 
 async function getChecksum(content: string) {
@@ -326,30 +331,42 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 	const originalEncryptedContent = await getFileContent(originalEncryptedUri);
 	const tmpDecryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
 	const tmpEncryptedFilePath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
-	const tmpFakeDecryptedEditorPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
+	let tmpFakeDecryptedEditorPath = path.join(os.tmpdir(), await getChecksum(Math.random().toString()));
+	let fakeDecryptedEditor = FAKE_DECRYPTED_EDITOR_SHELL;
+	if (process.platform === 'win32') {
+		// Windows platform needs different fake editor commands
+		tmpFakeDecryptedEditorPath = tmpFakeDecryptedEditorPath + '.cmd';
+		fakeDecryptedEditor = FAKE_DECRYPTED_EDITOR_CMD;
+	}
 	try {
-		await fs.writeFile(tmpFakeDecryptedEditorPath, FAKE_DECRYPTED_EDITOR_SHELL, { mode: 0o755 }); // TODO add Win .cmd script detection
+		await fs.writeFile(tmpFakeDecryptedEditorPath, fakeDecryptedEditor, { mode: 0o755 });
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
 		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const sopsBin = getSopsBinPath();
+		const cmds = [
+			...sopsGeneralArgs,
+			'--output-type',
+			fileFormat,
+			'--input-type',
+			fileFormat,
+			tmpEncryptedFilePath,
+		];
+		const envs = {
+			...sopsGeneralEnvVars,
+			EDITOR: normalizeCrossPlatformPath(tmpFakeDecryptedEditorPath),
+			VSCODE_SOPS_DECRYPTED_FILE_PATH: tmpDecryptedFilePath,
+		};
+		debug('SOPS command', sopsBin, cmds.join(' '), JSON.stringify(envs, undefined, 2));
 		const encryptProcess = child_process.spawnSync(
-			getSopsBinPath(),
-			[
-				...sopsGeneralArgs,
-				'--output-type',
-				fileFormat,
-				'--input-type',
-				fileFormat,
-				tmpEncryptedFilePath,
-			],
+			sopsBin,
+			cmds,
 			{
 				...spawnOptions,
 				env: {
 					...process.env,
-					...sopsGeneralEnvVars,
-					EDITOR: tmpFakeDecryptedEditorPath,
-					VSCODE_SOPS_DECRYPTED_FILE_PATH: tmpDecryptedFilePath,
+					...envs
 				},
 			},
 		);
@@ -539,16 +556,16 @@ function isDecryptedFile(uri: vscode.Uri) {
 function getDecryptedFileUri(encryptedUri: vscode.Uri): vscode.Uri {
 	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
 	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
-	const decryptedFileUri = encryptedUri.with({ path: decryptedFilePath });
+	const decryptedFileUri = encryptedUri.with({ path: normalizeCrossPlatformPath(decryptedFilePath) });
 	return decryptedFileUri;
 }
 
 function getEncryptedFileUri(decryptedUri: vscode.Uri): vscode.Uri | null {
 	return isDecryptedFile(decryptedUri) ? decryptedUri.with({
-		path: path.join(
+		path: normalizeCrossPlatformPath(path.join(
 			path.dirname(decryptedUri.path),
 			path.basename(decryptedUri.path).substring(DECRYPTED_PREFIX.length),
-		),
+		)),
 	}) : null;
 }
 
@@ -562,6 +579,10 @@ async function isSecretPairMember(uri: vscode.Uri) {
 
 function wait(timeoutMs: number) {
 	return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+}
+
+function normalizeCrossPlatformPath(filePath: string) {
+	return filePath.replace(/\\/g, "/");
 }
 
 export function activate(context: vscode.ExtensionContext) {
