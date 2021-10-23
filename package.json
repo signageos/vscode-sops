@@ -18,6 +18,7 @@
 		"*"
 	],
 	"main": "./out/extension.js",
+	"license": "MIT",
 	"contributes": {
 		"commands": [
 			{
@@ -85,7 +86,7 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"vscode:package": "vsce package",
-		"vscode:publish": "vsce publish",
+		"vscode:publish": "vsce publish ; npx ovsx publish -p $OVSX_TOKEN",
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
