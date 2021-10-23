@@ -18,6 +18,7 @@
 		"*"
 	],
 	"main": "./out/extension.js",
+	"license": "MIT",
 	"contributes": {
 		"commands": [
 			{
