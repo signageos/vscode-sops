@@ -83,7 +83,8 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"vscode:package": "vsce package",
-		"vscode:publish": "vsce publish ; npx ovsx publish -p $OVSX_TOKEN",
+		"vscode:publish": "vsce publish ; npm run ovsx:publish",
+		"ovsx:publish": "./tools/ovsx-publish.bash",
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
