@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as child_process from 'child_process';
 import * as YAML from 'yaml';
 import * as INI from 'ini';
+import * as DotEnv from './dotenv';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as Debug from 'debug';
@@ -100,11 +101,10 @@ toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
 toggleStatusBarItem.text = getToggleBarText();
 toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
-// TODO dotenv
-type IFileFormat = 'yaml' | 'json' | 'ini';
+type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv';
 
 function isIFileFormat(languageId: string): languageId is IFileFormat {
-	return ['yaml', 'json', 'ini'].includes(languageId);
+	return ['yaml', 'json', 'ini', 'dotenv'].includes(languageId);
 }
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
@@ -121,7 +121,7 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 		if (fileData instanceof Array) {
 			fileData = fileData[0];
 		}
-		if (typeof fileData === 'object' && typeof fileData.sops === 'object' && typeof fileData.sops.version === 'string') {
+		if (isSopsEncryptedData(fileData)) {
 			const progressOptions: vscode.ProgressOptions = {
 				location: vscode.ProgressLocation.Notification,
 			};
@@ -131,6 +131,13 @@ async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat
 			});
 		}
 	}
+}
+
+function isSopsEncryptedData(fileData: ParsedObject) {
+	return typeof fileData === 'object' && (
+		typeof fileData.sops === 'object' && typeof fileData.sops.version === 'string'
+		|| typeof fileData.sops_version === 'string'
+	);
 }
 
 async function handleSaveFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
@@ -206,6 +213,7 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 				case 'yaml': return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
 				case 'json': return JSON.parse(content);
 				case 'ini': return INI.parse(content);
+				case 'dotenv': return DotEnv.parse(content);
 			}
 		} catch (error) {
 			throw new ParseError(error);
