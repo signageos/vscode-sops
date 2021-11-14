@@ -1,3 +1,3 @@
 creation_rules:
-  - path_regex: '.+\.(yaml|ini|json)$'
+  - path_regex: '.*\.(yaml|ini|json|env)$'
     pgp: 9C12EE87E3224E13E2F4E47C9822F10250D5EFF7,2956A588E28BC345A26B345AD840C2DA156A9AC4

@@ -9,7 +9,7 @@ Additionally, it's available on Open VSX market place https://open-vsx.org/exten
 ## Features
 
 VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) supports:
-- Realtime editing of encrypted `yaml`, `json` and `ini` files in-place in your project.
+- Realtime editing of encrypted `yaml`, `json`, `dotenv` and `ini` files in-place in your project.
 - Create new encrypted yaml/json file using `.sops.yaml` config creation_rules if available.
 
 ## Requirements
@@ -19,6 +19,7 @@ VSCode extension with underlying [SOPS](https://github.com/mozilla/sops) support
 *Make sure that `sops` is available in $PATH environment variable*
 
 - Tutorial to SOPS: https://www.youtube.com/watch?v=V2PRhxphH2w
+- *(optional)* For dotenv support install https://marketplace.visualstudio.com/items?itemName=mikestead.dotenv extension first
 
 ## Extension Settings
 * `sops.enable`: enable/disable this extension (default: true)
