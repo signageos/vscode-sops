@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: tester
+spec:
+    replicas: {{ .Values.replicas }}
+    selector:
+        matchLabels:
+            app: tester
+    template:
+        metadata:
+            labels:
+                app: tester
+        spec:
+            containers:
+            -   name: tester
+                image: '{{ .Values.image }}'
+                env:
+                -   name: NODE_ENV
+                    value: '{{ .Values.node.env }}'
