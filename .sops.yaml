@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: '.env$'
+    kms: 'arn:aws:kms:eu-central-1:172396373649:key/6e173afc-5c3b-45f0-8613-1f2a678a4fb1'
+    pgp: 9C12EE87E3224E13E2F4E47C9822F10250D5EFF7,2956A588E28BC345A26B345AD840C2DA156A9AC4
