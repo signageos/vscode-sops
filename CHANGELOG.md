@@ -4,7 +4,7 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.4.1]
 ### Fixed
 - Failing when parsing empty YAML/JSON etc. files
 - Fix decrypt file paths to support native windows environments
