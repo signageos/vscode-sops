@@ -8,7 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 - Support for dotenv `.env` file format
 
-## [Unreleased]
+## [0.4.1]
 ### Fixed
 - Failing when parsing empty YAML/JSON etc. files
 - Fix decrypt file paths to support native windows environments
