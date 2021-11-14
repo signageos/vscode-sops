@@ -4,6 +4,7 @@
 The homepage of VSCode extension is located on https://github.com/signageos/vscode-sops
 
 Extension for VSCode is available on market place https://marketplace.visualstudio.com/items?itemName=signageos.signageos-vscode-sops
+Additionally, it's available on Open VSX market place https://open-vsx.org/extension/signageos/signageos-vscode-sops
 
 ## Features
 
