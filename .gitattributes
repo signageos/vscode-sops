@@ -1,0 +1,1 @@
+test/*.{yaml,json,ini,env} diff=sopsdiffer

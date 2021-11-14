@@ -49,6 +49,16 @@ I recommend to have enabled beta release to test everything as soon as possible.
 
 > The reason is that vscode doesn't support beta releases built-in. See and vote for https://github.com/microsoft/vscode/issues/15756
 
+## SOPS differ
+Optionally, you can add following file `.gitattributes` into your project
+```
+encrypted/*.{yaml,json,ini,env} diff=sopsdiffer
+```
+and run following command for global git settings
+```sh
+git config --global diff.sopsdiffer.textconv "sops -d --config /dev/null"
+```
+to see the git diff in decrypted format.
 
 ## Known Issues
 See https://github.com/signageos/vscode-sops/issues
