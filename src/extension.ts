@@ -101,10 +101,10 @@ toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
 toggleStatusBarItem.text = getToggleBarText();
 toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
-type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv';
+type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext';
 
 function isIFileFormat(languageId: string): languageId is IFileFormat {
-	return ['yaml', 'json', 'ini', 'dotenv'].includes(languageId);
+	return ['yaml', 'json', 'ini', 'dotenv', 'plaintext'].includes(languageId);
 }
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
@@ -214,6 +214,7 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 				case 'json': return JSON.parse(content);
 				case 'ini': return INI.parse(content);
 				case 'dotenv': return DotEnv.parse(content);
+				case 'plaintext': return JSON.parse(content);
 			}
 		} catch (error) {
 			throw new ParseError(error);

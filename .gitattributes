@@ -1,1 +1,1 @@
-test/*.{yaml,json,ini,env} diff=sopsdiffer
+test/*.{yaml,json,ini,env,txt} diff=sopsdiffer
