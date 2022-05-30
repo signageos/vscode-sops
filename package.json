@@ -3,7 +3,7 @@
 	"displayName": "@signageos/vscode-sops-beta",
 	"description": "",
 	"publisher": "signageos",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/signageos/vscode-sops"
