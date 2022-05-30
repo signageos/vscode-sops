@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 ### Added
+- Support for plain/text `.txt` file format
+
+## [0.5.0]
+### Added
 - Support for dotenv `.env` file format
 
 ## [0.4.1]
