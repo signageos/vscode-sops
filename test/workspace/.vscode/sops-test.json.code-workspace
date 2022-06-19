@@ -12,5 +12,8 @@
 		//"sops.defaults.gcpCredentialsPath": "google-credentials-test.json",
 		//"sops.configPath": "/home/misak113/dev/signageos/sops-test/.sopsrc2",
 		//"sops.creationEnabled": true,
+		"files.associations": {
+			".decrypted*.py.enc": "python",
+		},
 	}
 }
