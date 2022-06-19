@@ -7,6 +7,7 @@ import * as INI from 'ini';
 import * as DotEnv from './dotenv';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as minimatch from 'minimatch';
 import * as Debug from 'debug';
 import { TextEncoder, TextDecoder } from 'text-encoding';
 
@@ -103,8 +104,22 @@ toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOP
 
 type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext';
 
-function isIFileFormat(languageId: string): languageId is IFileFormat {
-	return ['yaml', 'json', 'ini', 'dotenv', 'plaintext'].includes(languageId);
+function getSupportedFileFormat(languageId: string, fileName: string): IFileFormat | null {
+	debug('getSupportedFileFormat', languageId, fileName);
+	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext'].includes(languageId)) {
+		return languageId as IFileFormat;
+	}
+
+	const associations: { [pattern: string]: string } = vscode.workspace.getConfiguration('files').get('associations') ?? {};
+	for (var pattern in associations) {
+		const associationFileFormat = associations[pattern];
+		debug('getSupportedFileFormat association', pattern, associationFileFormat);
+		if (minimatch(path.basename(fileName), pattern) && associationFileFormat === languageId) {
+			return 'plaintext'; // When the file association is changed, use original file format as plaintext
+		}
+	}
+
+	return null;
 }
 
 async function handleFile(document: vscode.TextDocument, fileFormat: IFileFormat) {
@@ -206,7 +221,7 @@ class ParseError extends Error {
 
 type ParsedObject = string | number | boolean | {
 	[key: string]: ParsedObject;
-}
+};
 
 function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject | ParsedObject[] {
 	return (content: string) => {
@@ -632,14 +647,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 		if (lastActiveEditor) {
 			let fileUriToOpen: vscode.Uri | undefined;
+			debug('command toggle current uri', lastActiveEditor.document.uri);
 
 			const encryptedFileUri = getEncryptedFileUri(lastActiveEditor.document.uri);
+			debug('command encrypted file uri', encryptedFileUri);
 			if (encryptedFileUri && await fileExists(encryptedFileUri)) {
 				debug('command encrypted file exists', encryptedFileUri.path);
 				fileUriToOpen = encryptedFileUri;
 			}
 
 			const decryptedFileUri = getDecryptedFileUri(lastActiveEditor.document.uri);
+			debug('command decrypted file uri', decryptedFileUri);
 			if (decryptedFileUri && await fileExists(decryptedFileUri)) {
 				debug('command decrypted file exists', decryptedFileUri.path);
 				fileUriToOpen = decryptedFileUri;
@@ -676,8 +694,9 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			try {
-				if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
-					await handleFile(document, document.languageId);
+				const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
+				if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
+					await handleFile(document, fileFormat);
 				}
 			} catch (error: unknown) {
 				debug('Cannot parse file', document.fileName, error);
@@ -698,8 +717,10 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try {
-			if (isIFileFormat(document.languageId)) {
-				await handleSaveFile(document, document.languageId);
+			debug('save document language', document.languageId);
+			const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
+			if (fileFormat) {
+				await handleSaveFile(document, fileFormat);
 			}
 		} catch (error: unknown) {
 			debug('Cannot encrypt file', document.fileName, error);
