@@ -181,7 +181,7 @@ async function tryCreateEncryptedFile(decryptedUri: vscode.Uri, fileFormat: IFil
 		const encryptedContent = await getNewEncryptedFileContent(decryptedUri, fileFormat);
 		const encryptedUri = decryptedUri; // overwrite current file
 		await vscode.workspace.fs.writeFile(encryptedUri, convertUtf8ToUint8Array(encryptedContent));
-	} catch (error) {
+	} catch (error: unknown) {
 		if (isNoMatchingRulesError(error)) {
 			debug('No matching creation rules found', decryptedUri.path);
 		} else {
@@ -190,14 +190,16 @@ async function tryCreateEncryptedFile(decryptedUri: vscode.Uri, fileFormat: IFil
 	}
 }
 
-function isNoMatchingRulesError(error: Error) {
-	return error?.message?.includes('no matching creation rules found');
+function isNoMatchingRulesError(error: unknown) {
+	return error instanceof Error && error?.message?.includes('no matching creation rules found');
 }
 
 class ParseError extends Error {
-	constructor(private originalError: Error) {
-		super(originalError.message);
-		this.stack = originalError.stack;
+	constructor(public readonly originalError: unknown) {
+		super(originalError instanceof Error ? originalError.message : `${originalError}`);
+		if (originalError instanceof Error) {
+			this.stack = originalError.stack;
+		}
 		Object.setPrototypeOf(this, ParseError.prototype);
 	}
 }
@@ -216,7 +218,7 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 				case 'dotenv': return DotEnv.parse(content);
 				case 'plaintext': return JSON.parse(content);
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			throw new ParseError(error);
 		}
 	};
@@ -478,7 +480,7 @@ async function fileExists(uri: vscode.Uri) {
 	try {
 		await vscode.workspace.fs.stat(uri);
 		return true;
-	} catch (error) {
+	} catch (error: unknown) {
 		return false;
 	}
 }
@@ -549,7 +551,7 @@ async function getRunControl(): Promise<IRunControl> {
 				const rc: IRunControl = YAML.parse(rcContent);
 				debug('Parsed Run Control', rc);
 				return rc ?? {};
-			} catch (error) {
+			} catch (error: unknown) {
 				debug('Invalid RC file format', error);
 			}
 		}
@@ -665,9 +667,9 @@ export function activate(context: vscode.ExtensionContext) {
 				for (const decryptedFileUri of decryptedFileUris) {
 					try {
 						await closeAndDeleteFile(decryptedFileUri);
-					} catch (error) {
+					} catch (error: unknown) {
 						debug('Cannot close file', document.fileName, error);
-						vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error.message}`);
+						vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${editor?.document.fileName}: ${error instanceof Error ? error.message : error}`);
 					}
 				}
 				decryptedFileUris.splice(0, decryptedFileUris.length);
@@ -677,10 +679,10 @@ export function activate(context: vscode.ExtensionContext) {
 				if (isIFileFormat(document.languageId) && !await fileExists(getDecryptedFileUri(document.uri))) {
 					await handleFile(document, document.languageId);
 				}
-			} catch (error) {
+			} catch (error: unknown) {
 				debug('Cannot parse file', document.fileName, error);
 				if (!(error instanceof ParseError)) {
-					vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error.message}`);
+					vscode.window.showErrorMessage(`Could not decrypt SOPS file ${document.fileName}: ${error instanceof Error ? error.message : error}`);
 				}
 			}
 
@@ -699,9 +701,9 @@ export function activate(context: vscode.ExtensionContext) {
 			if (isIFileFormat(document.languageId)) {
 				await handleSaveFile(document, document.languageId);
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			debug('Cannot encrypt file', document.fileName, error);
-			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error.message}`);
+			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error instanceof Error ? error.message : error}`);
 		}
 	};
 
