@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Added
+- Support for plain/text `.txt` file format
+
 ## [0.5.0]
 ### Added
 - Support for dotenv `.env` file format
