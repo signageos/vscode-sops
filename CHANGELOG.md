@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Fixed
+- Encryption of files when they have specified `files.associations` in settings (use plaintext encryption)
+
 ## [0.6.0]
 ### Added
 - Support for plain/text `.txt` file format
