@@ -76,6 +76,11 @@
 					"type": "string",
 					"scope": "resource",
 					"description": "Default path used to find GCP credentials. Overwrites the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (default: uses from environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)"
+				},
+				"sops.defaults.ageKeyFile": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
 				}
 			}
 		}
