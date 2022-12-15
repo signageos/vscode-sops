@@ -39,14 +39,17 @@ enum ConfigName {
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaults.awsProfile',
 	defaultGcpCredentialsPath = 'defaults.gcpCredentialsPath',
+	defaultAgeKeyFile = 'defaults.ageKeyFile',
 	configPath = 'configPath', // Run Control path
 }
 interface IRunControl {
 	awsProfile?: string;
 	gcpCredentialsPath?: string;
+	ageKeyFile?: string;
 }
 const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
+const AGE_KEY_FILE_ENV_VAR_NAME = 'SOPS_AGE_KEY_FILE';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
 
 enum Command {
@@ -503,10 +506,12 @@ async function fileExists(uri: vscode.Uri) {
 async function getSopsGeneralOptions() {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
 	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
-	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath });
+	const defaultAgeKeyFile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAgeKeyFile);
+	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath, defaultAgeKeyFile });
 	const rc = await getRunControl();
 	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
 	let gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
+	let ageKeyFile = rc.ageKeyFile ?? defaultAgeKeyFile;
 
 	const sopsGeneralArgs = [];
 	const sopsGeneralEnvVars: any = {};
@@ -528,6 +533,20 @@ async function getSopsGeneralOptions() {
 			}
 		}
 		sopsGeneralEnvVars[GCP_CREDENTIALS_ENV_VAR_NAME] = gcpCredentialsPath;
+	}
+
+	if (ageKeyFile) {
+		if (!path.isAbsolute(ageKeyFile) && vscode.workspace.workspaceFolders) {
+			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
+				const ageKeyFileAbsPath = path.join(workspaceFolder.uri.path, ageKeyFile);
+				const ageKeyFileUri = workspaceFolder.uri.with({ path: ageKeyFileAbsPath });
+				if (await fileExists(ageKeyFileUri)) {
+					ageKeyFile = ageKeyFileAbsPath;
+					break;
+				}
+			}
+		}
+		sopsGeneralEnvVars[AGE_KEY_FILE_ENV_VAR_NAME] = ageKeyFile;
 	}
 
 	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });

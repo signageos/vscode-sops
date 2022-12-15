@@ -1,2 +1,3 @@
 #awsProfile: test
 #gcpCredentialsPath: /home/misak113/dev/signageos/projects/vscode-sops/test/workspace/google-credentials-test.json
+#ageKeyFile: age.txt
