@@ -713,9 +713,11 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			try {
-				const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
-				if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
-					await handleFile(document, fileFormat);
+				if (!document.isUntitled) {
+					const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
+					if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
+						await handleFile(document, fileFormat);
+					}
 				}
 			} catch (error: unknown) {
 				debug('Cannot parse file', document.fileName, error);
