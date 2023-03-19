@@ -83,7 +83,22 @@
 					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
 				}
 			}
-		}
+		},
+		"languages": [
+			{
+				"id": "binary",
+				"aliases": [
+					"Binary",
+					"binary"
+				],
+				"extensions": [
+					".bin"
+				],
+				"mimetypes": [
+					"application/octet-stream"
+				]
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

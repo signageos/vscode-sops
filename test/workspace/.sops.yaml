@@ -1,4 +1,4 @@
 creation_rules:
-  - path_regex: '.*\.(yaml|ini|json|env|txt|py.enc)$'
+  - path_regex: '.*\.(yaml|ini|json|env|txt|py.enc|bin)$'
     #pgp: 9C12EE87E3224E13E2F4E47C9822F10250D5EFF7,2956A588E28BC345A26B345AD840C2DA156A9AC4
     age: age1gw5ew5aqytyhgzshedcdr243we6lp7dr5d9rc0mdff0fq0v7zcmq99n2rd

@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Added
+- Support for `binary` files (`octet-stream` mime type, `.bin` extension)
+
 ## [0.7.1]
 ### Fixed
 - `Untitled` document is not decrypted with error message when opened in new tab

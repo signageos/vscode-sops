@@ -105,11 +105,11 @@ toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
 toggleStatusBarItem.text = getToggleBarText();
 toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
-type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext';
+type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext' | 'binary';
 
 function getSupportedFileFormat(languageId: string, fileName: string): IFileFormat | null {
 	debug('getSupportedFileFormat', languageId, fileName);
-	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext'].includes(languageId)) {
+	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext', 'binary'].includes(languageId)) {
 		return languageId as IFileFormat;
 	}
 
@@ -235,6 +235,7 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 				case 'ini': return INI.parse(content);
 				case 'dotenv': return DotEnv.parse(content);
 				case 'plaintext': return JSON.parse(content);
+				case 'binary': return JSON.parse(content);
 			}
 		} catch (error: unknown) {
 			throw new ParseError(error);
@@ -279,7 +280,15 @@ function isFileOpen(uri: vscode.Uri) {
 }
 
 async function openFile(uri: vscode.Uri) {
-	return await vscode.window.showTextDocument(uri);
+	try {
+		return await vscode.window.showTextDocument(uri);
+	} catch (error: unknown) {
+		if (error instanceof Error && error.message.includes('Detail: File seems to be binary and cannot be opened as text')) {
+			vscode.window.showWarningMessage(`File seems to be binary and cannot be opened as text: ${uri.path}`);
+			return;
+		}
+		throw error;
+	}
 }
 
 async function closeAndDeleteFile(uri: vscode.Uri) {
