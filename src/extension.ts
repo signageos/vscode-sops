@@ -483,11 +483,11 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 }
 
 async function findSopsConfigRecursive(dirUri: vscode.Uri): Promise<vscode.Uri | undefined> {
-	const possibleSopsConfigUri = dirUri.with({ path: path.join(dirUri.path, SOPS_CONFIG_FILENAME) });
+	const possibleSopsConfigUri = dirUri.with({ path: path.join(dirUri.path, SOPS_CONFIG_FILENAME).replace(/\\/g, '/') });
 	if (await fileExists(possibleSopsConfigUri)) {
 		debug('SOPS config', possibleSopsConfigUri.path);
 		return possibleSopsConfigUri;
-	} else if (path.dirname(dirUri.path) !== '.') {
+	} else if (path.dirname(dirUri.path) !== '.' && path.dirname(dirUri.path) !== '/') {
 		return await findSopsConfigRecursive(dirUri.with({ path: path.dirname(dirUri.path) }));
 	} else {
 		return undefined;
