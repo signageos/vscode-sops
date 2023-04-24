@@ -8,6 +8,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 - Support for `binary` files (`octet-stream` mime type, `.bin` extension)
 
+### Fixed
+- Windows load sops config
+
 ## [0.7.1]
 ### Fixed
 - `Untitled` document is not decrypted with error message when opened in new tab
