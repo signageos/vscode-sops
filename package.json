@@ -131,7 +131,7 @@
 		"vscode-test": "^1.3.0"
 	},
 	"dependencies": {
-		"debug": "4.1.1",
+		"debug": "4.3.1",
 		"dotenv": "10.0.0",
 		"dotenv-stringify": "2.0.6",
 		"fs-extra": "8.1.0",
