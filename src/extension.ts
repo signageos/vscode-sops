@@ -531,6 +531,10 @@ async function getSopsGeneralOptions() {
 	}
 
 	if (gcpCredentialsPath) {
+		if (gcpCredentialsPath.startsWith('~')) {
+			gcpCredentialsPath = path.join(os.homedir(), gcpCredentialsPath.substring(1));
+		}
+
 		if (!path.isAbsolute(gcpCredentialsPath) && vscode.workspace.workspaceFolders) {
 			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
 				const gcpCredentialsAbsPath = path.join(workspaceFolder.uri.path, gcpCredentialsPath);
@@ -545,6 +549,10 @@ async function getSopsGeneralOptions() {
 	}
 
 	if (ageKeyFile) {
+		if (ageKeyFile.startsWith('~')) {
+			ageKeyFile = path.join(os.homedir(), ageKeyFile.substring(1));
+		}
+		
 		if (!path.isAbsolute(ageKeyFile) && vscode.workspace.workspaceFolders) {
 			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
 				const ageKeyFileAbsPath = path.join(workspaceFolder.uri.path, ageKeyFile);
