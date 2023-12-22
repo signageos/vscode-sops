@@ -327,7 +327,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 	try {
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
 		const decryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -381,7 +381,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
 		const sopsBin = getSopsBinPath();
 		const cmds = [
 			...sopsGeneralArgs,
@@ -453,7 +453,7 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 		const tmpDecryptedFilePath = path.join(tmpDirectoryPath, decryptedRelativePathToSopsConfig);
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		debug('Encrypting', decryptedUri.path, decryptedContent, tmpDecryptedFilePath);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(decryptedUri);
 		const encryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -512,7 +512,7 @@ async function fileExists(uri: vscode.Uri) {
 	}
 }
 
-async function getSopsGeneralOptions() {
+async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
 	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
 	const defaultAgeKeyFile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAgeKeyFile);
@@ -557,6 +557,17 @@ async function getSopsGeneralOptions() {
 		}
 		sopsGeneralEnvVars[AGE_KEY_FILE_ENV_VAR_NAME] = ageKeyFile;
 	}
+
+
+	// Error related to this issue https://github.com/getsops/sops/issues/884 is thrown otherwise.
+	// This is a workaround until the issue is fixed.
+	sopsGeneralArgs.push('--config', '/dev/null');
+
+	let sopsConfigUri = await findSopsConfigRecursive(fileUriToEncryptOrDecrypt.with({ path: path.dirname(fileUriToEncryptOrDecrypt.path) }));
+	if (sopsConfigUri) {
+		spawnOptions.cwd = path.dirname(sopsConfigUri.path);
+	}
+
 
 	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
 

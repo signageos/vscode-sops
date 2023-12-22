@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.9.0]
+### Added
+- Execute `sops` command in directory with .sops.yaml corresponding to file to decrypt/encrypt. (This permit support sops via [aquaproj/aqua](https://aquaproj.github.io/))
+
 ## [0.8.0]
 ### Added
 - Support for `binary` files (`octet-stream` mime type, `.bin` extension)
