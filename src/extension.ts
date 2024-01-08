@@ -105,11 +105,11 @@ toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
 toggleStatusBarItem.text = getToggleBarText();
 toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
-type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext';
+type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext' | 'binary';
 
 function getSupportedFileFormat(languageId: string, fileName: string): IFileFormat | null {
 	debug('getSupportedFileFormat', languageId, fileName);
-	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext'].includes(languageId)) {
+	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext', 'binary'].includes(languageId)) {
 		return languageId as IFileFormat;
 	}
 
@@ -235,6 +235,7 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 				case 'ini': return INI.parse(content);
 				case 'dotenv': return DotEnv.parse(content);
 				case 'plaintext': return JSON.parse(content);
+				case 'binary': return JSON.parse(content);
 			}
 		} catch (error: unknown) {
 			throw new ParseError(error);
@@ -279,7 +280,15 @@ function isFileOpen(uri: vscode.Uri) {
 }
 
 async function openFile(uri: vscode.Uri) {
-	return await vscode.window.showTextDocument(uri);
+	try {
+		return await vscode.window.showTextDocument(uri);
+	} catch (error: unknown) {
+		if (error instanceof Error && error.message.includes('Detail: File seems to be binary and cannot be opened as text')) {
+			vscode.window.showWarningMessage(`File seems to be binary and cannot be opened as text: ${uri.path}`);
+			return;
+		}
+		throw error;
+	}
 }
 
 async function closeAndDeleteFile(uri: vscode.Uri) {
@@ -318,7 +327,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 	try {
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
 		const decryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -372,7 +381,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
 		const sopsBin = getSopsBinPath();
 		const cmds = [
 			...sopsGeneralArgs,
@@ -444,7 +453,7 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 		const tmpDecryptedFilePath = path.join(tmpDirectoryPath, decryptedRelativePathToSopsConfig);
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		debug('Encrypting', decryptedUri.path, decryptedContent, tmpDecryptedFilePath);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions();
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(decryptedUri);
 		const encryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -483,11 +492,11 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 }
 
 async function findSopsConfigRecursive(dirUri: vscode.Uri): Promise<vscode.Uri | undefined> {
-	const possibleSopsConfigUri = dirUri.with({ path: path.join(dirUri.path, SOPS_CONFIG_FILENAME) });
+	const possibleSopsConfigUri = dirUri.with({ path: path.join(dirUri.path, SOPS_CONFIG_FILENAME).replace(/\\/g, '/') });
 	if (await fileExists(possibleSopsConfigUri)) {
 		debug('SOPS config', possibleSopsConfigUri.path);
 		return possibleSopsConfigUri;
-	} else if (path.dirname(dirUri.path) !== '.') {
+	} else if (path.dirname(dirUri.path) !== '.' && path.dirname(dirUri.path) !== '/') {
 		return await findSopsConfigRecursive(dirUri.with({ path: path.dirname(dirUri.path) }));
 	} else {
 		return undefined;
@@ -503,7 +512,7 @@ async function fileExists(uri: vscode.Uri) {
 	}
 }
 
-async function getSopsGeneralOptions() {
+async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
 	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
 	const defaultAgeKeyFile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAgeKeyFile);
@@ -548,6 +557,17 @@ async function getSopsGeneralOptions() {
 		}
 		sopsGeneralEnvVars[AGE_KEY_FILE_ENV_VAR_NAME] = ageKeyFile;
 	}
+
+
+	// Error related to this issue https://github.com/getsops/sops/issues/884 is thrown otherwise.
+	// This is a workaround until the issue is fixed.
+	sopsGeneralArgs.push('--config', '/dev/null');
+
+	let sopsConfigUri = await findSopsConfigRecursive(fileUriToEncryptOrDecrypt.with({ path: path.dirname(fileUriToEncryptOrDecrypt.path) }));
+	if (sopsConfigUri) {
+		spawnOptions.cwd = path.dirname(sopsConfigUri.path);
+	}
+
 
 	debug('sops options', { sopsGeneralArgs, sopsGeneralEnvVars });
 
@@ -713,9 +733,11 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			try {
-				const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
-				if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
-					await handleFile(document, fileFormat);
+				if (!document.isUntitled) {
+					const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
+					if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
+						await handleFile(document, fileFormat);
+					}
 				}
 			} catch (error: unknown) {
 				debug('Cannot parse file', document.fileName, error);

@@ -3,7 +3,7 @@
 	"displayName": "@signageos/vscode-sops-beta",
 	"description": "",
 	"publisher": "signageos",
-	"version": "0.7.0",
+	"version": "0.9.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/signageos/vscode-sops"
@@ -83,7 +83,22 @@
 					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
 				}
 			}
-		}
+		},
+		"languages": [
+			{
+				"id": "binary",
+				"aliases": [
+					"Binary",
+					"binary"
+				],
+				"extensions": [
+					".bin"
+				],
+				"mimetypes": [
+					"application/octet-stream"
+				]
+			}
+		]
 	},
 	"extensionDependencies": [
 		"signageos.signageos-vscode-sops"
@@ -119,7 +134,7 @@
 		"vscode-test": "^1.3.0"
 	},
 	"dependencies": {
-		"debug": "4.1.1",
+		"debug": "4.3.1",
 		"dotenv": "10.0.0",
 		"dotenv-stringify": "2.0.6",
 		"fs-extra": "8.1.0",
