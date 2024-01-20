@@ -561,11 +561,17 @@ async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 
 	// Error related to this issue https://github.com/getsops/sops/issues/884 is thrown otherwise.
 	// This is a workaround until the issue is fixed.
-	sopsGeneralArgs.push('--config', '/dev/null');
+	let configPath = os.platform() === 'win32' ? 'NUL' : '/dev/null';
+	sopsGeneralArgs.push('--config', configPath);
 
 	let sopsConfigUri = await findSopsConfigRecursive(fileUriToEncryptOrDecrypt.with({ path: path.dirname(fileUriToEncryptOrDecrypt.path) }));
 	if (sopsConfigUri) {
-		spawnOptions.cwd = path.dirname(sopsConfigUri.path);
+		let sopsConfigPath = sopsConfigUri.path;
+		if (os.platform() === 'win32') {
+			// remove first '/' character of path on windows /c:/foo/bar ==> c:/foo/bar
+			sopsConfigPath = sopsConfigPath.substring(1);
+		}
+		spawnOptions.cwd = path.dirname(sopsConfigPath);
 	}
 
 
