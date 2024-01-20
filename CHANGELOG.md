@@ -4,7 +4,14 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.9.1]
+### Fixed
+- Fixed functionality issues in version 0.9.0 for Windows systems.
+
 ## [0.9.0]
+### Warning
+- This version is not working on Windows systems. Please use version 0.9.1 instead.
+
 ### Added
 - Execute `sops` command in directory with .sops.yaml corresponding to file to decrypt/encrypt. (This permit support sops via [aquaproj/aqua](https://aquaproj.github.io/))
 
