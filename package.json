@@ -81,6 +81,12 @@
 					"type": "string",
 					"scope": "resource",
 					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
+				},
+				"sops.defaults.ignoreMac": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "enable/disable MAC verification (default: false)"
 				}
 			}
 		},
