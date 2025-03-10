@@ -517,7 +517,7 @@ async function getSopsGeneralOptions() {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
 	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
 	const defaultAgeKeyFile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAgeKeyFile);
-	const defaultIgnoreMac: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.ignoreMac);
+	const ignoreMac: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.ignoreMac);
 	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath, defaultAgeKeyFile });
 	const rc = await getRunControl();
 	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
@@ -532,7 +532,7 @@ async function getSopsGeneralOptions() {
 		sopsGeneralEnvVars[AWS_PROFILE_ENV_VAR_NAME] = awsProfile; // --aws-profile argument doesn't work well
 	}
 
-	if (defaultIgnoreMac) {
+	if (ignoreMac) {
 		sopsGeneralArgs.push('--ignore-mac');
 	}
 
