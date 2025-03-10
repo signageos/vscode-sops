@@ -3,7 +3,7 @@
 	"displayName": "@signageos/vscode-sops-beta",
 	"description": "",
 	"publisher": "signageos",
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/signageos/vscode-sops"
@@ -81,6 +81,12 @@
 					"type": "string",
 					"scope": "resource",
 					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
+				},
+				"sops.defaults.ignoreMac": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "enable/disable MAC verification (default: false)"
 				}
 			}
 		},
