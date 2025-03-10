@@ -4,6 +4,10 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.9.2]
+### Fixed
+- Missing `--ignore-mac` option in `sops` command.
+
 ## [0.9.1]
 ### Fixed
 - Fixed functionality issues in version 0.9.0 for Windows systems.
