@@ -115,6 +115,11 @@ function getSupportedFileFormat(languageId: string, fileName: string): IFileForm
 		return languageId as IFileFormat;
 	}
 
+	// Treat markdown files as plaintext for SOPS encryption/decryption
+	if (languageId === 'markdown') {
+		return 'plaintext';
+	}
+
 	const associations: { [pattern: string]: string } = vscode.workspace.getConfiguration('files').get('associations') ?? {};
 	for (var pattern in associations) {
 		const associationFileFormat = associations[pattern];
