@@ -107,11 +107,11 @@ toggleStatusBarItem.command = Command.TOGGLE_ORIGINAL_FILE;
 toggleStatusBarItem.text = getToggleBarText();
 toggleStatusBarItem.tooltip = 'Toggle between original and decrypted file by SOPS';
 
-type IFileFormat = 'yaml' | 'json' | 'ini' | 'dotenv' | 'plaintext' | 'binary';
+type IFileFormat = 'yaml' | 'json' | 'jsonc' | 'ini' | 'dotenv' | 'plaintext' | 'binary';
 
 function getSupportedFileFormat(languageId: string, fileName: string): IFileFormat | null {
 	debug('getSupportedFileFormat', languageId, fileName);
-	if (['yaml', 'json', 'ini', 'dotenv', 'plaintext', 'binary'].includes(languageId)) {
+	if (['yaml', 'json', 'jsonc', 'ini', 'dotenv', 'plaintext', 'binary'].includes(languageId)) {
 		return languageId as IFileFormat;
 	}
 
@@ -233,7 +233,9 @@ function getParser(fileFormat: IFileFormat): (encoded: string) => ParsedObject |
 		try {
 			switch (fileFormat) {
 				case 'yaml': return YAML.parseAllDocuments(content).map((doc) => doc.toJSON());
-				case 'json': return JSON.parse(content);
+				case 'json':
+				case 'jsonc':
+          return JSON.parse(content);
 				case 'ini': return INI.parse(content);
 				case 'dotenv': return DotEnv.parse(content);
 				case 'plaintext': return JSON.parse(content);
