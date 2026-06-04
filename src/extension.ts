@@ -636,6 +636,14 @@ function isDecryptedFile(uri: vscode.Uri) {
 	return path.basename(uri.path).startsWith(DECRYPTED_PREFIX);
 }
 
+// SOPS shells out to the `sops` binary, which only operates on real on-disk files.
+// Virtual documents (output channels, git diffs, LLM tool outputs, etc.) use other
+// URI schemes that have no file system provider, so we must not try to read or
+// decrypt them.
+function isOnDiskFile(uri: vscode.Uri) {
+	return uri.scheme === 'file';
+}
+
 function getDecryptedFileUri(encryptedUri: vscode.Uri): vscode.Uri {
 	const decryptedFileName = DECRYPTED_PREFIX + path.basename(encryptedUri.path);
 	const decryptedFilePath = path.join(path.dirname(encryptedUri.path), decryptedFileName);
@@ -751,7 +759,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			try {
-				if (!document.isUntitled) {
+				if (!document.isUntitled && isOnDiskFile(document.uri)) {
 					const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
 					if (fileFormat && !await fileExists(getDecryptedFileUri(document.uri))) {
 						await handleFile(document, fileFormat);
@@ -778,7 +786,7 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			debug('save document language', document.languageId);
 			const fileFormat = getSupportedFileFormat(document.languageId, document.fileName);
-			if (fileFormat) {
+			if (fileFormat && isOnDiskFile(document.uri)) {
 				await handleSaveFile(document, fileFormat);
 			}
 		} catch (error: unknown) {
