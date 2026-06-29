@@ -5,6 +5,11 @@ All notable changes to the "vscode-sops" extension will be documented in this fi
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 ## [Unreleased]
+### Added
+- Support for VS Code variables (`${workspaceFolder}`, `${workspaceFolder:Name}`, `${workspaceFolderBasename}`, `${fileWorkspaceFolder}`, `${userHome}`, `${env:VAR}`, `${pathSeparator}`) and a leading `~` in the path settings `sops.binPath`, `sops.configPath`, `sops.defaults.gcpCredentialsPath` and `sops.defaults.ageKeyFile`. This fixes e.g. pointing `sops.binPath` at a [mise](https://mise.jdx.dev/)-managed shim via `${workspaceFolder}`.
+
+### Fixed
+- Default a UTF-8 `LANG` locale for the `sops` subprocess when `LANG`/`LC_ALL`/`LC_CTYPE` are all unset. age plugins such as `age-plugin-yubikey` exit without a locale (surfacing as `failed to read line: EOF`).
 
 ## [0.9.4]
 ### Fixed

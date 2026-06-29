@@ -59,13 +59,13 @@
 					"type": "string",
 					"scope": "resource",
 					"default": "sops",
-					"description": "Path to SOPS binary (default: executables from `$PATH`)"
+					"description": "Path to SOPS binary (default: executables from `$PATH`). Supports VS Code variables like `${workspaceFolder}` and a leading `~`."
 				},
 				"sops.configPath": {
 					"type": "string",
 					"scope": "resource",
 					"default": "./.sopsrc",
-					"description": "Absolute path (Starts with /) or Relative path to project (Starts with ./) where the configuration for this extension is looking for (default: Looking for file `.sopsrc` in root of project) See [Config file](#config-file) section."
+					"description": "Absolute path (Starts with /) or Relative path to project (Starts with ./) where the configuration for this extension is looking for (default: Looking for file `.sopsrc` in root of project) See [Config file](#config-file) section. Supports VS Code variables like `${workspaceFolder}` and a leading `~`."
 				},
 				"sops.defaults.awsProfile": {
 					"type": "string",
@@ -75,12 +75,12 @@
 				"sops.defaults.gcpCredentialsPath": {
 					"type": "string",
 					"scope": "resource",
-					"description": "Default path used to find GCP credentials. Overwrites the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (default: uses from environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)"
+					"description": "Default path used to find GCP credentials. Overwrites the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (default: uses from environment variable `$GOOGLE_APPLICATION_CREDENTIALS`). Supports VS Code variables like `${workspaceFolder}` and a leading `~`."
 				},
 				"sops.defaults.ageKeyFile": {
 					"type": "string",
 					"scope": "resource",
-					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)"
+					"description": "Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`). Supports VS Code variables like `${workspaceFolder}` and a leading `~`."
 				},
 				"sops.defaults.ignoreMac": {
 					"type": "boolean",

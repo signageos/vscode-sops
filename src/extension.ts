@@ -53,6 +53,19 @@ const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AGE_KEY_FILE_ENV_VAR_NAME = 'SOPS_AGE_KEY_FILE';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
+// age plugins (e.g. age-plugin-yubikey) exit on startup without a UTF-8 locale, which
+// surfaces as "failed to read line: EOF" during decryption. Editors launched from the GUI
+// (Finder/Dock) often inherit no locale, so we default one when none is configured.
+const DEFAULT_LOCALE = 'en_US.UTF-8';
+
+// Returns env overrides ensuring the sops/age subprocess has a UTF-8 locale (see DEFAULT_LOCALE).
+// Only applied when no locale is configured, so an explicit LANG/LC_ALL/LC_CTYPE is respected.
+export function localeEnvFallback(env: NodeJS.ProcessEnv): { LANG?: string } {
+	if (!env.LANG && !env.LC_ALL && !env.LC_CTYPE) {
+		return { LANG: DEFAULT_LOCALE };
+	}
+	return {};
+}
 
 enum Command {
 	INFO_COMMAND = 'sops.info',
@@ -64,9 +77,57 @@ enum Command {
 const SOPS_CONFIG_FILENAME = '.sops.yaml';
 
 const DECRYPTED_PREFIX = '.decrypted~';
-const getSopsBinPath = () => {
-	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.binPath);
-	return sopsPath ?? 'sops';
+
+// Pure, testable core: substitutes VS Code style variables in a path-like config value.
+// Supported: ${workspaceFolder}, ${workspaceFolder:Name}, ${workspaceFolderBasename},
+// ${fileWorkspaceFolder}, ${userHome}, ${env:VAR}, ${pathSeparator} / ${/}, and a leading
+// ~ (home directory).
+export function applyVariableSubstitution(
+	value: string,
+	vars: {
+		workspaceFolder?: string; // resolved for the resource (or first folder)
+		namedWorkspaceFolders?: { [name: string]: string };
+		userHome: string;
+		env: NodeJS.ProcessEnv;
+		pathSep: string;
+	},
+): string {
+	let result = value
+		.replace(/\$\{workspaceFolder:([^}]+)\}/g, (m, name) => vars.namedWorkspaceFolders?.[name] ?? m)
+		.replace(/\$\{workspaceFolderBasename\}/g, (m) => vars.workspaceFolder === undefined ? m : path.basename(vars.workspaceFolder))
+		// ${fileWorkspaceFolder} is the workspace folder of the processed file; since we already
+		// resolve ${workspaceFolder} against that resource, it is an alias here.
+		.replace(/\$\{(?:workspaceFolder|fileWorkspaceFolder)\}/g, (m) => vars.workspaceFolder ?? m)
+		.replace(/\$\{userHome\}/g, vars.userHome)
+		.replace(/\$\{env:([^}]+)\}/g, (_m, name) => vars.env[name] ?? '')
+		.replace(/\$\{(?:pathSeparator|\/)\}/g, vars.pathSep);
+	// leading ~ expansion (relevant for mise/asdf shim paths under ~/.local/...)
+	if (result === '~' || result.startsWith('~/') || result.startsWith('~\\')) {
+		result = path.join(vars.userHome, result.slice(1));
+	}
+	return result;
+}
+
+// vscode-aware wrapper around applyVariableSubstitution.
+function substitutePathVariables(value: string, resourceUri?: vscode.Uri): string {
+	const folders = vscode.workspace.workspaceFolders ?? [];
+	const namedWorkspaceFolders: { [name: string]: string } = {};
+	for (const folder of folders) {
+		namedWorkspaceFolders[folder.name] = folder.uri.fsPath;
+	}
+	const containing = resourceUri ? vscode.workspace.getWorkspaceFolder(resourceUri)?.uri.fsPath : undefined;
+	return applyVariableSubstitution(value, {
+		workspaceFolder: containing ?? folders[0]?.uri.fsPath,
+		namedWorkspaceFolders,
+		userHome: os.homedir(),
+		env: process.env,
+		pathSep: path.sep,
+	});
+}
+
+const getSopsBinPath = (resourceUri?: vscode.Uri) => {
+	const sopsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION, resourceUri).get(ConfigName.binPath);
+	return substitutePathVariables(sopsPath ?? 'sops', resourceUri);
 };
 
 // TODO wait til vscode provide proper way to get current extension name
@@ -331,7 +392,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 		debug('Decrypting', uri.path, encryptedContent);
 		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
 		const decryptProcess = child_process.spawnSync(
-			getSopsBinPath(),
+			getSopsBinPath(uri),
 			[
 				...sopsGeneralArgs,
 				'--output-type',
@@ -384,7 +445,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
 		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
-		const sopsBin = getSopsBinPath();
+		const sopsBin = getSopsBinPath(uri);
 		const cmds = [
 			...sopsGeneralArgs,
 			'--output-type',
@@ -457,7 +518,7 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 		debug('Encrypting', decryptedUri.path, decryptedContent, tmpDecryptedFilePath);
 		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(decryptedUri);
 		const encryptProcess = child_process.spawnSync(
-			getSopsBinPath(),
+			getSopsBinPath(decryptedUri),
 			[
 				...sopsGeneralArgs,
 				...sopsConfigArgs,
@@ -529,6 +590,11 @@ async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	const sopsGeneralArgs = [];
 	const sopsGeneralEnvVars: any = {};
 
+	// Ensure the sops/age subprocess has a UTF-8 locale. age plugins such as age-plugin-yubikey
+	// fail with "failed to read line: EOF" when LANG/LC_ALL/LC_CTYPE are all unset, which happens
+	// when the editor is launched from the GUI rather than a shell.
+	Object.assign(sopsGeneralEnvVars, localeEnvFallback(process.env));
+
 	if (awsProfile) {
 		sopsGeneralArgs.push('--aws-profile', awsProfile);
 		sopsGeneralEnvVars[AWS_PROFILE_ENV_VAR_NAME] = awsProfile; // --aws-profile argument doesn't work well
@@ -543,6 +609,7 @@ async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	}
 
 	if (gcpCredentialsPath) {
+		gcpCredentialsPath = substitutePathVariables(gcpCredentialsPath, fileUriToEncryptOrDecrypt);
 		if (!path.isAbsolute(gcpCredentialsPath) && vscode.workspace.workspaceFolders) {
 			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
 				const gcpCredentialsAbsPath = path.join(workspaceFolder.uri.path, gcpCredentialsPath);
@@ -557,6 +624,7 @@ async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	}
 
 	if (ageKeyFile) {
+		ageKeyFile = substitutePathVariables(ageKeyFile, fileUriToEncryptOrDecrypt);
 		if (!path.isAbsolute(ageKeyFile) && vscode.workspace.workspaceFolders) {
 			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
 				const ageKeyFileAbsPath = path.join(workspaceFolder.uri.path, ageKeyFile);
@@ -601,11 +669,13 @@ async function getRunControl(): Promise<IRunControl> {
 	let rcPath = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.configPath);
 	if (vscode.workspace.workspaceFolders) {
 		if (typeof rcPath === 'string') {
+			const resolvedRcPath = substitutePathVariables(rcPath);
+			const isAbsolute = path.isAbsolute(resolvedRcPath);
 			for (const rootPath of vscode.workspace.workspaceFolders) {
-				if (rcPath.charAt(0) === '/') { // absolute path in rc file
-					possibleRCUris.push(rootPath.uri.with({ path: rcPath }));
+				if (isAbsolute) { // absolute path in rc file
+					possibleRCUris.push(rootPath.uri.with({ path: resolvedRcPath }));
 				} else {
-					possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, rcPath) }));
+					possibleRCUris.push(rootPath.uri.with({ path: path.join(rootPath.uri.path, resolvedRcPath) }));
 				}
 			}
 		}
