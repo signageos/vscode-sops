@@ -28,6 +28,9 @@ This extension works with binaries `sops / age / ...` installed via [aquaproj/aq
 * `sops.beta`: enable/disable beta release without reloading VSCode or enabling/disabling extensions (default: false)
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 * `sops.configPath`: Path (absolute or relative) to the configuration for this extension (empty: defaults to `.sopsrc` in root of project) See [Config file](#config-file) section.
+
+> The path settings (`sops.binPath`, `sops.configPath`, `sops.defaults.gcpCredentialsPath`, `sops.defaults.ageKeyFile`) support VS Code variables: `${workspaceFolder}`, `${workspaceFolder:Name}` (multi-root), `${workspaceFolderBasename}`, `${fileWorkspaceFolder}`, `${userHome}`, `${env:VAR}`, `${pathSeparator}` and a leading `~`. For example, to use a [mise](https://mise.jdx.dev/)-managed `sops` shim: `"sops.binPath": "${workspaceFolder}/.vscode/mise-tools/sops"`.
+
 * `sops.defaults.awsProfile`: Default AWS profile name which will be used for sops command `--aws-profile` (empty: defaults to environment variable `$AWS_PROFILE`)
 * `sops.defaults.gcpCredentialsPath`: Default path used to find GCP credentials. Overrides the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (empty: defaults to environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)
 * `sops.defaults.ageKeyFile`: Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)
