@@ -765,6 +765,17 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			lastActiveEditor = editor;
+		} else {
+			for (const decryptedFileUri of decryptedFileUris) {
+				try {
+					await closeAndDeleteFile(decryptedFileUri);
+				} catch (error: unknown) {
+					debug('Cannot close file', decryptedFileUri.path, error);
+					vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${decryptedFileUri.path}: ${error instanceof Error ? error.message : error}`);
+				}
+			}
+			decryptedFileUris.splice(0, decryptedFileUris.length);
+			lastActiveEditor = undefined;
 		}
 
 		await syncStatusBar();
@@ -784,27 +795,6 @@ export function activate(context: vscode.ExtensionContext) {
 		} catch (error: unknown) {
 			debug('Cannot encrypt file', document.fileName, error);
 			vscode.window.showErrorMessage(`Could not encrypt SOPS file ${document.fileName}: ${error instanceof Error ? error.message : error}`);
-		}
-	};
-
-	const onTextDocumentClosed = async (document: vscode.TextDocument) => {
-		debug('close document', document.fileName);
-		if (!isEnabled(context)) {
-			return;
-		}
-
-		if (isDecryptedFile(document.uri) && !isFileOpen(document.uri)) {
-			try {
-				await closeAndDeleteFile(document.uri);
-			} catch (error: unknown) {
-				debug('Cannot delete file', document.fileName, error);
-				vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${document.fileName}: ${error instanceof Error ? error.message : error}`);
-			}
-
-			const index = decryptedFileUris.findIndex((uri) => uri.path === document.uri.path);
-			if (index !== -1) {
-				decryptedFileUris.splice(index, 1);
-			}
 		}
 	};
 
@@ -831,7 +821,6 @@ export function activate(context: vscode.ExtensionContext) {
 					vscode.commands.registerTextEditorCommand(Command.TOGGLE_ORIGINAL_FILE, toggleOriginalFile),
 					vscode.window.onDidChangeActiveTextEditor(onActiveEditorChanged),
 					vscode.workspace.onDidSaveTextDocument(onTextDocumentSaved),
-					vscode.workspace.onDidCloseTextDocument(onTextDocumentClosed),
 					vscode.commands.registerCommand(Command.INFO_COMMAND, printInfo),
 					vscode.commands.registerCommand(Command.ENABLE_BETA, createSetBeta(true)),
 					vscode.commands.registerCommand(Command.DISABLE_BETA, createSetBeta(false)),
