@@ -765,6 +765,17 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			lastActiveEditor = editor;
+		} else {
+			for (const decryptedFileUri of decryptedFileUris) {
+				try {
+					await closeAndDeleteFile(decryptedFileUri);
+				} catch (error: unknown) {
+					debug('Cannot close file', decryptedFileUri.path, error);
+					vscode.window.showErrorMessage(`Could not delete decrypted SOPS file ${decryptedFileUri.path}: ${error instanceof Error ? error.message : error}`);
+				}
+			}
+			decryptedFileUris.splice(0, decryptedFileUris.length);
+			lastActiveEditor = undefined;
 		}
 
 		await syncStatusBar();
