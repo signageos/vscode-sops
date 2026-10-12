@@ -38,6 +38,7 @@ enum ConfigName {
 	creationEnabled = 'creationEnabled',
 	binPath = 'binPath',
 	defaultAwsProfile = 'defaults.awsProfile',
+	autoAwsProfile = 'autoAwsProfile',
 	defaultGcpCredentialsPath = 'defaults.gcpCredentialsPath',
 	defaultAgeKeyFile = 'defaults.ageKeyFile',
 	configPath = 'configPath', // Run Control path
@@ -53,6 +54,7 @@ const DEFAULT_RUN_CONTROL_FILENAME = '.sopsrc';
 const GCP_CREDENTIALS_ENV_VAR_NAME = 'GOOGLE_APPLICATION_CREDENTIALS';
 const AGE_KEY_FILE_ENV_VAR_NAME = 'SOPS_AGE_KEY_FILE';
 const AWS_PROFILE_ENV_VAR_NAME = 'AWS_PROFILE';
+const AWS_CONFIG_FILE_ENV_VAR_NAME = 'AWS_CONFIG_FILE';
 
 enum Command {
 	INFO_COMMAND = 'sops.info',
@@ -329,7 +331,7 @@ async function getDecryptedFileContent(uri: vscode.Uri, fileFormat: IFileFormat)
 	try {
 		await fs.writeFile(tmpEncryptedFilePath, encryptedContent, { mode: 0o600 });
 		debug('Decrypting', uri.path, encryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri, encryptedContent);
 		const decryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -383,7 +385,7 @@ async function getEncryptedFileContent(uri: vscode.Uri, originalEncryptedUri: vs
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		await fs.writeFile(tmpEncryptedFilePath, originalEncryptedContent, { mode: 0o600 });
 		debug('Encrypting', uri.path, decryptedContent);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(uri, originalEncryptedContent);
 		const sopsBin = getSopsBinPath();
 		const cmds = [
 			...sopsGeneralArgs,
@@ -438,10 +440,11 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 		const sopsConfigUri = await findSopsConfigRecursive(decryptedUri.with({ path: path.dirname(decryptedUri.path) }));
 
 		let sopsConfigArgs: string[] = [];
+		let sopsConfigContent: string | undefined;
 		let decryptedRelativePathToSopsConfig: string;
 		if (sopsConfigUri) {
 			decryptedRelativePathToSopsConfig = path.relative(path.dirname(sopsConfigUri.path), decryptedUri.path);
-			const sopsConfigContent = await getFileContent(sopsConfigUri);
+			sopsConfigContent = await getFileContent(sopsConfigUri);
 			debug('SOP config content', sopsConfigContent);
 			const tmpSopsConfigPath = path.join(tmpDirectoryPath, path.basename(sopsConfigUri.path));
 			await fs.writeFile(tmpSopsConfigPath, sopsConfigContent, { mode: 0o600 });
@@ -455,7 +458,7 @@ async function getNewEncryptedFileContent(decryptedUri: vscode.Uri, fileFormat: 
 		const tmpDecryptedFilePath = path.join(tmpDirectoryPath, decryptedRelativePathToSopsConfig);
 		await fs.writeFile(tmpDecryptedFilePath, decryptedContent, { mode: 0o600 });
 		debug('Encrypting', decryptedUri.path, decryptedContent, tmpDecryptedFilePath);
-		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(decryptedUri);
+		const { sopsGeneralArgs, sopsGeneralEnvVars } = await getSopsGeneralOptions(decryptedUri, sopsConfigContent);
 		const encryptProcess = child_process.spawnSync(
 			getSopsBinPath(),
 			[
@@ -514,7 +517,98 @@ async function fileExists(uri: vscode.Uri) {
 	}
 }
 
-async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
+/**
+ * Extracts AWS account IDs from all KMS ARNs found in the given content (in order of appearance, unique).
+ * Works for any sops format (yaml/json/ini/dotenv) and for .sops.yaml, because it only looks for the ARN pattern.
+ */
+function extractKmsAccountIds(content: string | undefined): string[] {
+	if (!content) {
+		return [];
+	}
+	const accountIds: string[] = [];
+	const regex = /arn:aws[\w-]*:kms:[a-z0-9-]+:(\d{12}):/g;
+	let match: RegExpExecArray | null;
+	while ((match = regex.exec(content)) !== null) {
+		if (!accountIds.includes(match[1])) {
+			accountIds.push(match[1]);
+		}
+	}
+	return accountIds;
+}
+
+interface IAwsProfileAccounts {
+	name: string;
+	ssoAccountId?: string;
+	roleAccountId?: string;
+}
+
+async function readAwsProfiles(): Promise<IAwsProfileAccounts[]> {
+	const configPath = process.env[AWS_CONFIG_FILE_ENV_VAR_NAME] || path.join(os.homedir(), '.aws', 'config');
+	let content: string;
+	try {
+		content = await fs.readFile(configPath, 'utf8');
+	} catch (error: unknown) {
+		debug('Cannot read AWS config', configPath, error);
+		return [];
+	}
+	let parsed: { [section: string]: any };
+	try {
+		parsed = INI.parse(content);
+	} catch (error: unknown) {
+		debug('Cannot parse AWS config', configPath, error);
+		return [];
+	}
+	const profiles: IAwsProfileAccounts[] = [];
+	for (const section of Object.keys(parsed)) {
+		let name: string;
+		if (section === 'default') {
+			name = 'default';
+		} else if (section.startsWith('profile ')) {
+			name = section.substring('profile '.length).trim();
+		} else {
+			continue; // sso-session, services, etc.
+		}
+		const values = parsed[section];
+		if (typeof values !== 'object' || values === null) {
+			continue;
+		}
+		const ssoAccountId = typeof values.sso_account_id === 'string' ? values.sso_account_id.trim() : undefined;
+		const roleArn = typeof values.role_arn === 'string' ? values.role_arn : undefined;
+		const roleAccountId = roleArn?.match(/^arn:aws[\w-]*:iam::(\d{12}):/)?.[1];
+		if (ssoAccountId || roleAccountId) {
+			profiles.push({ name, ssoAccountId, roleAccountId });
+		}
+	}
+	return profiles;
+}
+
+/**
+ * Finds AWS profile in ~/.aws/config matching the account of the KMS ARN(s) in the content.
+ * Matches by sso_account_id first, then by account in role_arn.
+ * When more profiles match the same account, the preferred profile (explicitly configured) wins if it is one of them.
+ */
+async function findAwsProfileByKmsAccount(content: string | undefined, preferredProfile: string | undefined): Promise<string | undefined> {
+	const accountIds = extractKmsAccountIds(content);
+	if (accountIds.length === 0) {
+		return undefined;
+	}
+	const profiles = await readAwsProfiles();
+	for (const accountId of accountIds) {
+		const candidates = [
+			...profiles.filter((profile) => profile.ssoAccountId === accountId),
+			...profiles.filter((profile) => profile.ssoAccountId !== accountId && profile.roleAccountId === accountId),
+		].map((profile) => profile.name);
+		if (candidates.length > 0) {
+			const selected = preferredProfile && candidates.includes(preferredProfile) ? preferredProfile : candidates[0];
+			debug('Auto AWS profile', { accountId, candidates, selected });
+			return selected;
+		}
+	}
+	debug('No AWS profile matches KMS accounts', accountIds);
+	return undefined;
+}
+
+async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri, kmsSourceContent?: string) {
 	const defaultAwsProfile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAwsProfile);
 	const defaultGcpCredentialsPath: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultGcpCredentialsPath);
 	const defaultAgeKeyFile: string | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.defaultAgeKeyFile);
@@ -522,7 +616,12 @@ async function getSopsGeneralOptions(fileUriToEncryptOrDecrypt: vscode.Uri) {
 	const macOnlyEncrypted: boolean | undefined = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.macOnlyEncrypted);
 	debug('config', { defaultAwsProfile, defaultGcpCredentialsPath, defaultAgeKeyFile });
 	const rc = await getRunControl();
-	const awsProfile = rc.awsProfile ?? defaultAwsProfile;
+	const explicitAwsProfile = rc.awsProfile ?? defaultAwsProfile;
+	const autoAwsProfileEnabled: boolean = vscode.workspace.getConfiguration(CONFIG_BASE_SECTION).get(ConfigName.autoAwsProfile) ?? true;
+	const autoAwsProfile = autoAwsProfileEnabled
+		? await findAwsProfileByKmsAccount(kmsSourceContent, explicitAwsProfile ?? process.env[AWS_PROFILE_ENV_VAR_NAME])
+		: undefined;
+	const awsProfile = autoAwsProfile ?? explicitAwsProfile;
 	let gcpCredentialsPath = rc.gcpCredentialsPath ?? defaultGcpCredentialsPath;
 	let ageKeyFile = rc.ageKeyFile ?? defaultAgeKeyFile;
 
