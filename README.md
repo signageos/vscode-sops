@@ -28,6 +28,7 @@ This extension works with binaries `sops / age / ...` installed via [aquaproj/aq
 * `sops.beta`: enable/disable beta release without reloading VSCode or enabling/disabling extensions (default: false)
 * `sops.binPath`: Path to SOPS binary (default: executables from `$PATH`)
 * `sops.configPath`: Path (absolute or relative) to the configuration for this extension (empty: defaults to `.sopsrc` in root of project) See [Config file](#config-file) section.
+* `sops.autoAwsProfile`: Auto-select the AWS profile in `~/.aws/config` (or `$AWS_CONFIG_FILE`) whose `sso_account_id` (or `role_arn` account) matches the account of `sops.kms[].arn` in the encrypted file (for new files: of the ARNs in `.sops.yaml`). Takes precedence over `awsProfile` from `.sopsrc` / `sops.defaults.awsProfile`, which act as fallback and tie-breaker when several profiles share the account (default: true)
 * `sops.defaults.awsProfile`: Default AWS profile name which will be used for sops command `--aws-profile` (empty: defaults to environment variable `$AWS_PROFILE`)
 * `sops.defaults.gcpCredentialsPath`: Default path used to find GCP credentials. Overrides the `$GOOGLE_APPLICATION_CREDENTIALS` environment variable (empty: defaults to environment variable `$GOOGLE_APPLICATION_CREDENTIALS`)
 * `sops.defaults.ageKeyFile`: Default path used to find AGE key file. Overwrites the `$SOPS_AGE_KEY_FILE` environment variable (default: uses from environment variable `$SOPS_AGE_KEY_FILE`)
